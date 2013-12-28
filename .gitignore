@@ -1,4 +1,4 @@
-buildX.properties
+build.properties
 target/
 .idea/*.xml
 .idea/*.iws
