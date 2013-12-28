@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!--
+  *************************************************************************
+  * Ant script for building and testing F1X FIX Engine
+  *
+  * run with -projecthelp option to obtain list of supported tasks
+  *************************************************************************
+  -->
+<project name="f1x" default="build" basedir=".">
+
+  <description>F1X Engine</description>
+
+  <!-- set global properties for this script -->
+  <property file="build.properties"/>
+  <property environment="env"/>
+
+  <!-- Sets the basic environment -->
+  <property name="lib"            location="lib"/>
+  <property name="tools"          location="tools"/>
+  <property name="source"         location="src/main/java"/>
+  <property name="classesdir"     location="target/classes"/>
+  <property name="testsource"     location="src/test/java"/>
+  <property name="testclassesdir" location="target/test-classes"/>
+
+  <target name="build" depends="init,compile,jar" description="Full build"/>
+
+  <target name="init">
+    <echo message="Output: ${classesdir}"/>
+    <echo message="java.home: ${java.home}"/>
+
+    <mkdir dir="${classesdir}"/>
+    <mkdir dir="${testclassesdir}"/>
+  </target> <!-- init -->
+
+  <target name="clean" depends="init" description="Clean up all output">
+
+    <!-- delete compiled classes -->
+    <delete failonerror="no">
+       <fileset dir="${classesdir}" includes="**/*.class"/>
+       <fileset dir="${testclassesdir}" includes="**/*.class"/>
+       <!--fileset dir="${docsdir}/apidoc"/-->
+       <fileset dir="target/*.jar"/>
+    </delete>
+  </target> <!-- clean -->
+
+  <target name="compile" depends="init" description="Compiles sources">
+    <echo>Compiling all Java files from ${source} into ${classesdir}</echo>
+
+    <javac srcdir="${source}" destdir="${classesdir}" verbose="${verbose}" deprecation="true" debug="${debug.mode}" includeantruntime="false" failonerror="true">
+        <classpath>
+            <pathelement location="${lib}/disruptor-3.2.0.jar"/>
+            <pathelement location="${lib}/gflogger.jar"/>
+        </classpath>
+    </javac>
+
+    <javac srcdir="${testsource}" destdir="${testclassesdir}" verbose="${verbose}" deprecation="true" debug="${debug.mode}" includeantruntime="false" failonerror="true">
+        <classpath>
+			<pathelement location="${classesdir}"/>
+            <pathelement location="${lib}/disruptor-3.2.0.jar"/>
+            <pathelement location="${lib}/gflogger.jar"/>
+            <pathelement location="${tools}/junit-4.7.jar	"/>
+            <pathelement location="${tools}/allocation.jar"/>
+        </classpath>
+    </javac>
+
+  </target> <!-- compile -->
+
+  <target name="jar" depends="compile" description="Generate jar">
+    <jar destfile="target\f1x-${version}.jar">
+        <fileset dir="${classesdir}">
+            <include name="**/*.class"/>
+        </fileset>
+    </jar>
+  </target> <!-- jar -->
+
+  <target name="deploy" depends="jar" description="Deploy jar">
+    <copy file="target\f1x-${version}.jar" tofile="${deploy.dir}\f1x.jar"/>
+  </target> <!-- deploy -->
+  
+  
+  
+</project>

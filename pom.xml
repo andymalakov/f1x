@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <!--
+       Maven project configuration file for F1X.
+
+       SETUP:
+       =====
+       Before you can build this project you need to import GFLOGGER third-party library to your local maven repository:
+       mvn install:install-file -Dfile=./lib/gflogger.jar -DgroupId=org.gflogger -DartifactId=gflogger -Dversion=1.0 -Dpackaging=jar -DgeneratePom=true
+
+      -->
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.f1x</groupId>
+    <artifactId>f1x</artifactId>
+    <packaging>jar</packaging>
+    <version>0.1-SNAPSHOT</version>
+    <name>f1x</name>
+    <url>https://code.google.com/p/f1x/</url>
+    <description>Java implementation of FIX Protocol.</description>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.5.1</version>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.15</version>
+                <configuration>
+                    <argLine>-Dfile.encoding=${project.build.sourceEncoding}</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.8.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>3.2.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.gflogger</groupId>
+            <artifactId>gflogger</artifactId>
+            <version>1.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.java-allocation-instrumenter</groupId>
+            <artifactId>java-allocation-instrumenter</artifactId>
+            <version>2.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <!-- Follow instructions above to install GFLogger into local repository
+        <dependency>
+            <groupId>org.gflogger</groupId>
+            <artifactId>gflogger</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/lib/gflogger.jar</systemPath>
+        </dependency>
+        -->
+    </dependencies>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+</project>
