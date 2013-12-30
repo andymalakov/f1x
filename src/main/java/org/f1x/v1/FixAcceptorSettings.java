@@ -16,7 +16,6 @@ package org.f1x.v1;
 
 public class FixAcceptorSettings extends FixSettings {
     private int maxNumberOfConnections = 10;
-    private int socketTimeout;
 
     public int getMaxNumberOfConnections() {
         return maxNumberOfConnections;
@@ -26,11 +25,4 @@ public class FixAcceptorSettings extends FixSettings {
         this.maxNumberOfConnections = maxNumberOfConnections;
     }
 
-    public int getSocketTimeout() {
-        return socketTimeout;
-    }
-
-    public void setSocketTimeout(int socketTimeout) {
-        this.socketTimeout = socketTimeout;
-    }
 }

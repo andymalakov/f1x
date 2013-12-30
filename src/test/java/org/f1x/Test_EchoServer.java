@@ -63,7 +63,7 @@ public class Test_EchoServer {
         private final MessageBuilder mb = new ByteBufferMessageBuilder(256, 3);
 
         public EchoServerClient(String host, int port, SessionID sessionID) {
-            super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings(), null);
+            super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings());
         }
 
         public void sendMessage () {

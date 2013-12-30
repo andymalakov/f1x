@@ -14,6 +14,7 @@
 
 package org.f1x.v1;
 
+import org.f1x.api.message.fields.FixTags;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 import org.f1x.api.FixParserException;
@@ -26,7 +27,6 @@ import org.f1x.util.parse.TimestampParser;
 public class DefaultMessageParser implements MessageParser {
 
     private static final GFLog LOGGER = GFLogFactory.getLog(DefaultMessageParser.class);
-    private static final boolean DEBUG = LOGGER.isDebugEnabled();
 
     private static final char SOH = 1; // field separator
 
@@ -50,20 +50,18 @@ public class DefaultMessageParser implements MessageParser {
     @Override
     public boolean next() {
         try {
-            if (_next()) {
-
+            final boolean result = _next();
+            if (result) {
                 if (valueLength == 0)
                     throw new FixParserException("Tag " + tagNum + " has empty value at position " + offset);
 
-                if (DEBUG) LOGGER.debug().append("Finished parsing tag ").append(toString()).commit();
-                return true;
-            } else {
-                if (DEBUG) LOGGER.debug().append("Finished parsing message ").append(toString()).commit();
-                return false;
+//                if (tagNum == FixTags.MsgSeqNum)
+//                    validateSequenceNumber(getIntegerValue());
             }
+            return result;
 
         } catch (FixParserException e) {
-            throw new FixParserException("Parser error (" + offset + "): " + e.getMessage());
+            throw new FixParserException("Parser error (at " + offset + "): " + e.getMessage());
         }
     }
 

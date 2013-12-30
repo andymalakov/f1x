@@ -22,7 +22,6 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
-import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionState;
 import org.f1x.util.ByteArrayReference;
 import org.f1x.v1.ByteBufferMessageBuilder;
@@ -40,11 +39,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
     }
 
     public SimpleFixAcceptor(int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        this(bindPort, sessionID, settings, null);
-    }
-
-    public SimpleFixAcceptor(int bindPort, SessionID sessionID, FixAcceptorSettings settings, SessionEventListener eventListener) {
-        super(bindPort, sessionID, settings, new SimpleFixSessionAcceptor(FixVersion.FIX44, settings, eventListener));
+        super(null, bindPort, sessionID, new SimpleFixSessionAcceptor(FixVersion.FIX44, settings));
     }
 
     public static void main (String [] args) throws InterruptedException, IOException {
@@ -68,8 +63,8 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
 
         private volatile int orderCount;
 
-        public SimpleFixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings, SessionEventListener eventListener) {
-            super(fixVersion, settings, eventListener);
+        public SimpleFixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
+            super(fixVersion, settings);
             scheduleStats(15000);
         }
 

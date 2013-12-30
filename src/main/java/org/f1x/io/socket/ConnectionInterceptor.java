@@ -12,13 +12,17 @@
  * limitations under the License.
  */
 
-package org.f1x.v0;
+package org.f1x.io.socket;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 /**
- * Message format is invalid. For example, field is missing value, bad checksum, illegal character, unexpected message end.
+ * Called when during HTTP handshake. Implementation can set networking options on new socket or refuse connection from blacklisted Remote IP.
  */
-public class InvalidMessageFormatException extends Exception {
-    public InvalidMessageFormatException(String message) {
-        super(message);
-    }
+public interface ConnectionInterceptor {
+
+    /** @return false to terminate connection */
+    boolean onNewConnection(Socket socket) throws IOException;
 }

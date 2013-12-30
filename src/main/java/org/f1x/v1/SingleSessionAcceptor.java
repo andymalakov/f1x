@@ -16,7 +16,6 @@ package org.f1x.v1;
 
 import org.f1x.api.FixVersion;
 import org.f1x.api.SessionID;
-import org.f1x.api.session.SessionEventListener;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -25,14 +24,14 @@ public class SingleSessionAcceptor extends ServerSocketSessionAcceptor {
     private final SessionID sessionID;
     private final FixSessionAcceptor acceptor;
 
-    public SingleSessionAcceptor(int bindPort, FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings, SessionEventListener eventListener) {
-        super(bindPort, settings);
+    public SingleSessionAcceptor(String bindAddr, int bindPort, FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
+        super(bindAddr, bindPort);
         this.sessionID = sessionID;
-        this.acceptor = new FixSessionAcceptor(fixVersion, settings, eventListener) {};
+        this.acceptor = new FixSessionAcceptor(fixVersion, settings) {};
     }
 
-    public SingleSessionAcceptor(int bindPort, SessionID sessionID, FixAcceptorSettings settings, FixSessionAcceptor acceptor) {
-        super(bindPort, settings);
+    public SingleSessionAcceptor(String bindAddr, int bindPort, SessionID sessionID, FixSessionAcceptor acceptor) {
+        super(bindAddr, bindPort);
         this.sessionID = sessionID;
         this.acceptor = acceptor;
     }

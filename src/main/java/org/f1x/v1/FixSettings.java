@@ -14,7 +14,7 @@
 
 package org.f1x.v1;
 
-public class FixSettings {
+public class FixSettings extends SocketOptions {
     private boolean logInboundMessages = false;
     private boolean logOutboundMessages = false;
 
@@ -25,12 +25,6 @@ public class FixSettings {
 
     /** Defines how floating point numbers will be formatted in FIX messages. This parameter sets maximum number of digits after decimal point (e.g. 3). Truncated part will be rounded. */
     private int doubleFormatterPrecision;
-
-    private boolean isSocketKeepAlive = true;
-    private boolean isSocketTcpNoDelay = true;
-
-    private int socketRecvBufferSize = 64*1024;
-    private int socketSendBufferSize = 64*1024;
 
     private String logDirectory;
 
@@ -79,22 +73,6 @@ public class FixSettings {
         this.doubleFormatterPrecision = doubleFormatterPrecision;
     }
 
-    public boolean isSocketKeepAlive() {
-        return isSocketKeepAlive;
-    }
-
-    public boolean isSocketTcpNoDelay() {
-        return isSocketTcpNoDelay;
-    }
-
-    public int getSocketRecvBufferSize() {
-        return socketRecvBufferSize;
-    }
-
-    public int getSocketSendBufferSize() {
-        return socketSendBufferSize;
-    }
-
     public String getLogDirectory() {
         return logDirectory;
     }
@@ -102,4 +80,5 @@ public class FixSettings {
     public void setLogDirectory(String logDirectory) {
         this.logDirectory = logDirectory;
     }
+
 }

@@ -14,13 +14,12 @@
 
 package org.f1x.v1;
 
-import org.gflogger.GFLog;
-import org.gflogger.GFLogFactory;
 import org.f1x.api.FixVersion;
 import org.f1x.api.SessionID;
 import org.f1x.api.message.MessageParser;
-import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionState;
+import org.gflogger.GFLog;
+import org.gflogger.GFLogFactory;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -32,8 +31,8 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
     protected static final GFLog LOGGER = GFLogFactory.getLog(FixSessionAcceptor.class);
     private SessionID sessionID;
 
-    public FixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings, SessionEventListener eventListener) {
-        super(fixVersion, settings, eventListener);
+    public FixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
+        super(fixVersion, settings);
     }
 
     @Override

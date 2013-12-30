@@ -45,18 +45,11 @@ public abstract class FixCommunicator implements Runnable {
     private static final int MIN_FIX_MESSAGE_LENGTH = 24; // approx
     private static final int CHECKSUM_LENGTH = 7; // length("10=123|") --check sum always expressed using 3 digits
 
-// Moved to applications
-//    static {
-//        try {
-//            org.gflogger.config.xml.XmlLogFactoryConfigurator.configure("/config/gflogger.xml");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
 
     protected static final GFLog LOGGER = GFLogFactory.getLog(FixCommunicator.class);
 
-    private final SessionEventListener eventListener;
+    private SessionEventListener eventListener;
+
     private final FixSettings settings;
     private final boolean logInboundMessages;
     private final boolean logOutboundMessages;
@@ -84,9 +77,8 @@ public abstract class FixCommunicator implements Runnable {
     private final RawMessageAssembler messageAssembler;
 
 
-    public FixCommunicator (FixVersion fixVersion, FixSettings settings, SessionEventListener eventListener) {
+    public FixCommunicator (FixVersion fixVersion, FixSettings settings ) {
         this.settings = settings;
-        this.eventListener = eventListener;
 
         this.logInboundMessages = settings.isLogInboundMessages();
         this.logOutboundMessages = settings.isLogOutboundMessages();
@@ -100,6 +92,10 @@ public abstract class FixCommunicator implements Runnable {
         sessionMessageBuilder = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
         messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), RealTimeSource.INSTANCE);
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
+    }
+
+    public void setEventListener(SessionEventListener eventListener) {
+        this.eventListener = eventListener;
     }
 
     public abstract SessionID getSessionID();
@@ -251,7 +247,9 @@ public abstract class FixCommunicator implements Runnable {
     }
 
     private void send(MessageBuilder messageBuilder, int msgSeqNum) throws IOException {
-        messageAssembler.send(getSessionID(), msgSeqNum, messageBuilder, out); //TODO: Need critical section for messageAssembler
+        synchronized (messageAssembler) {
+            messageAssembler.send(getSessionID(), msgSeqNum, messageBuilder, out);
+        }
     }
 
     protected void sendLogon(boolean resetSequenceNumbers) throws IOException {

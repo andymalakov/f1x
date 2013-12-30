@@ -28,13 +28,14 @@ import org.f1x.v1.SingleSessionAcceptor;
 
 import java.io.IOException;
 
+/** Simple FIX acceptor that echos back all inbound application messages */
 public class EchoServer extends SingleSessionAcceptor {
     public EchoServer(int bindPort, SessionID sessionID) {
         this(bindPort, sessionID, new FixAcceptorSettings());
     }
 
     public EchoServer(int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        super(bindPort, sessionID, settings, new EchoServerSessionAcceptor(FixVersion.FIX44, settings, null));
+        super(null, bindPort, sessionID, new EchoServerSessionAcceptor(FixVersion.FIX44, settings));
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
@@ -54,8 +55,8 @@ public class EchoServer extends SingleSessionAcceptor {
     private static class EchoServerSessionAcceptor extends FixSessionAcceptor {
         private final MessageBuilder mb = new ByteBufferMessageBuilder(256, 3);
 
-        public EchoServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings, SessionEventListener eventListener) {
-            super(fixVersion, settings, eventListener);
+        public EchoServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
+            super(fixVersion, settings);
         }
 
         @Override

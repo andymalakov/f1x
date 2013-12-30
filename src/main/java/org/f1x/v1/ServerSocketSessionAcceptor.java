@@ -14,10 +14,13 @@
 
 package org.f1x.v1;
 
+import org.f1x.io.socket.BindInterceptor;
+import org.f1x.io.socket.ConnectionInterceptor;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -25,15 +28,30 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
 
     protected static final GFLog LOGGER = GFLogFactory.getLog(MultiSessionAcceptor.class);
 
-    private final FixAcceptorSettings settings;
-
+    private BindInterceptor bindInterceptor;
+    private ConnectionInterceptor connectionInterceptor;
     private final int bindPort;
+    private final String bindAddress;
 
     private volatile boolean active = true;
+    private volatile ServerSocket ss = null;
 
-    public ServerSocketSessionAcceptor(int bindPort, FixAcceptorSettings settings) {
+    /**
+     *
+     * @param bindAddress the port number, or <code>0</code> to use a port number that is automatically allocated
+     * @param bindPort the local InetAddress the server will bind to (pass <code>null</code> to accept connections on any/all local addresses)
+     */
+    public ServerSocketSessionAcceptor(String bindAddress, int bindPort) {
+        this.bindAddress = bindAddress;
         this.bindPort = bindPort;
-        this.settings = settings;
+    }
+
+    public void setConnectionInterceptor(ConnectionInterceptor connectionInterceptor) {
+        this.connectionInterceptor = connectionInterceptor;
+    }
+
+    public void setBindInterceptor(BindInterceptor bindInterceptor) {
+        this.bindInterceptor = bindInterceptor;
     }
 
     /** Dispatch inbound socket connections to FixAcceptorThreads */
@@ -41,8 +59,13 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
     public void run() {
         LOGGER.info().append("FIX Acceptor started on port ").append(bindPort).commit();
         try {
-            ServerSocket ss = new ServerSocket (bindPort);
-            ss.setSoTimeout(settings.getSocketTimeout());
+            if (bindAddress != null)
+                ss = new ServerSocket (bindPort, 50, InetAddress.getByName(bindAddress));
+            else
+                ss = new ServerSocket (bindPort);
+
+            if (bindInterceptor != null)
+                bindInterceptor.onBind(ss);
             acceptInboundConnections(ss);
         } catch (Throwable e) {
             LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
@@ -52,9 +75,15 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
     protected void acceptInboundConnections(ServerSocket ss) {
         while (active) {
             try {
-                Socket socket = ss.accept ();
-                if (processInboundConnection (socket))
+                final Socket socket = ss.accept();
+                if (connectionInterceptor != null && ! connectionInterceptor.onNewConnection(socket)) {
                     socket.close();
+                    continue;
+                }
+
+                if (processInboundConnection (socket))
+                    socket.close(); // otherwise acceptor spawns a thread that will be responsible for this connection
+
             } catch (Throwable e) {
                 LOGGER.warn().append("Error in acceptor loop (ignoring)").append(e).commit();
             }
@@ -66,7 +95,15 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
 
     public void close() {
         active = false;
-//        ServerSocketSessionAcceptor.this.interrupt();
+
+        ServerSocket ss = this.ss;
+        if (ss != null) {
+            try {
+                ss.close();
+            } catch (IOException e) {
+                LOGGER.warn().append("Error closing server socket").append(e).commit();
+            }
+        }
     }
 
 }

@@ -17,14 +17,14 @@ package org.f1x.alloc;
 import com.google.monitoring.runtime.instrumentation.AllocationRecorder;
 import com.google.monitoring.runtime.instrumentation.Sampler;
 import org.f1x.SessionIDBean;
-import org.f1x.api.FixVersion;
 import org.f1x.api.SessionID;
 import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionState;
+import org.f1x.io.socket.DefaultBindInterceptor;
+import org.f1x.io.socket.DefaultConnectionInterceptor;
 import org.f1x.tools.SimpleFixAcceptor;
 import org.f1x.tools.SimpleFixInitiator;
-import org.f1x.v1.FixAcceptorSettings;
-import org.f1x.v1.FixSessionInitiator;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,18 +34,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * This test verifies that there are no allocations in during session
+ * This test verifies that there are no allocations in during session.
+ * NOTE: you must run JVM with  -javaagent:allocation.jar option
  */
 public class NoAllocationsTest {
 
     private static final String INITIATOR_SENDER_ID = "INITIATOR";
     private static final String ACCEPTOR_SENDER_ID = "ACCEPTOR";
 
-    private static SimpleFixInitiator createInitiator(int port, SessionEventListener eventListener) {
-        return new SimpleFixInitiator("localhost", port, new SessionIDBean(INITIATOR_SENDER_ID, ACCEPTOR_SENDER_ID), eventListener);
+    private static SimpleFixInitiator createInitiator(int port) {
+        return new SimpleFixInitiator("localhost", port, new SessionIDBean(ACCEPTOR_SENDER_ID, INITIATOR_SENDER_ID));
     }
 
     private static SimpleFixAcceptor createAcceptor(int port) {
@@ -55,8 +55,6 @@ public class NoAllocationsTest {
 
     @Test(timeout = 120000)
     public void simpleMessageLoop() throws InterruptedException, IOException {
-        List<String> allocs = enableAllocationTracing(); //TODO: Something is wrong... no allocations are recorded :-(
-
         final CountDownLatch connected = new CountDownLatch(1);
         final SessionEventListener eventListener = new SessionEventListener() {
 
@@ -68,8 +66,11 @@ public class NoAllocationsTest {
         };
 
         final SimpleFixAcceptor acceptor = createAcceptor(7890);
-        final SimpleFixInitiator initiator = createInitiator(7890, eventListener);
-
+        acceptor.setBindInterceptor(new DefaultBindInterceptor());
+        acceptor.setConnectionInterceptor(new DefaultConnectionInterceptor());
+        final SimpleFixInitiator initiator = createInitiator(7890);
+        initiator.setConnectionInterceptor(new DefaultConnectionInterceptor());
+        initiator.setEventListener(eventListener);
 
         final Thread acceptorThread = new Thread(acceptor, "Acceptor");
         acceptorThread.start();
@@ -80,23 +81,44 @@ public class NoAllocationsTest {
         if ( ! connected.await(15, TimeUnit.SECONDS))
             Assert.fail("Connection failed");
 
-        for(int i=1; i <= 10000; i++) {
-            initiator.sendNewOrder(i);
+        long  orderId = 1;
+        AllocationDetector allocationDetector = AllocationDetector.create();
+        for(int i=1; i <= 10; i++) {
+            initiator.sendNewOrder(orderId++);
         }
         Thread.sleep(1000);
+        allocationDetector.enabled = true;
+        for(int i=1; i <= 1000; i++) {
+            initiator.sendNewOrder(orderId++);
+        }
+        Thread.sleep(1000);
+        allocationDetector.enabled = false;
+        if ( ! allocationDetector.allocs.isEmpty())
+            Assert.fail("There were " + allocationDetector.allocs.size() + " allocations");
         initiator.disconnect("End of test");
-        if ( ! allocs.isEmpty())
-            Assert.fail("There were " + allocs.size() + " allocations");
     }
 
-    private static List<String> enableAllocationTracing() {
-        final List<String> allocs = Collections.synchronizedList(new ArrayList<String>(10000));
-        AllocationRecorder.addSampler(new Sampler() {
-            public void sampleAllocation(int count, String desc, Object newObj, long size) {
-                System.out.println("I just allocated the object " + newObj + " of type " + desc + " whose size is " + size);
-                allocs.add(newObj.getClass().getName());
-            }
-        });
-        return allocs;
+
+    @After
+    public void disableTracing() {
+        //TODO: disable tracing
+    }
+
+    private static class AllocationDetector implements Sampler {
+        final List<Class> allocs = Collections.synchronizedList(new ArrayList<Class>(10000));
+        volatile boolean enabled;
+
+        static AllocationDetector create () {
+            AllocationDetector result = new AllocationDetector();
+            AllocationRecorder.addSampler(result);
+            return result;
+        }
+
+        @Override
+        public void sampleAllocation(int count, String desc, Object newObj, long size) {
+            //System.out.println("I just allocated the object " + newObj + " of type " + desc + " whose size is " + size);
+            if (enabled)
+                allocs.add(newObj.getClass());
+        }
     }
 }

@@ -22,7 +22,6 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
-import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionState;
 import org.f1x.v1.ByteBufferMessageBuilder;
 import org.f1x.v1.FixInitiatorSettings;
@@ -36,11 +35,7 @@ public class SimpleFixInitiator extends FixSessionInitiator {
     private final MessageBuilder mb = new ByteBufferMessageBuilder(256, 3);
 
     public SimpleFixInitiator(String host, int port, SessionID sessionID) {
-        this(host, port, sessionID, null);
-    }
-
-    public SimpleFixInitiator(String host, int port, SessionID sessionID, SessionEventListener eventListener) {
-        super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings(), eventListener);
+        super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings());
     }
 
     public void sendNewOrder (long orderId) throws IOException {
@@ -83,7 +78,6 @@ public class SimpleFixInitiator extends FixSessionInitiator {
         double lastQty = Double.NaN;
         double lastPrice = Double.NaN;
         double leavesQty = Double.NaN;
-        String orderId = null;
 
         while (parser.next()) {
             switch (parser.getTagNum()) {
@@ -91,7 +85,7 @@ public class SimpleFixInitiator extends FixSessionInitiator {
                     clOrdId = parser.getIntValue();
                     break;
                 case FixTags.OrderID:
-                    orderId= parser.getStringValue();
+                    CharSequence orderId = parser.getCharSequenceValue();
                     break;
                 case FixTags.OrdStatus:
                     ordStatus = ordStatusLookup.get(parser.getByteValue());

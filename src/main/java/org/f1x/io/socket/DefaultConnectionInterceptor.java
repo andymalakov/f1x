@@ -14,29 +14,36 @@
 
 package org.f1x.io.socket;
 
+import org.f1x.v1.SocketOptions;
+
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
  *
  */
-public class DefaultInboundConnectionInterceptor implements InboundConnectionInterceptor {
+public class DefaultConnectionInterceptor implements ConnectionInterceptor {
 
-    private final FixNetworkingOptions networkingOptions;
+    private final SocketOptions socketOptions;
 
-    public DefaultInboundConnectionInterceptor() {
-        this (new FixNetworkingOptions()); // load defaults
+    public DefaultConnectionInterceptor() {
+        this (new SocketOptions()); // load defaults
     }
 
-    public DefaultInboundConnectionInterceptor(FixNetworkingOptions networkingOptions) {
-        this.networkingOptions = networkingOptions;
+    public DefaultConnectionInterceptor(SocketOptions socketOptions) {
+        this.socketOptions = socketOptions;
     }
-
 
     @Override
     public boolean onNewConnection(Socket socket) throws IOException {
-        socket.setTcpNoDelay(networkingOptions.isTcpNoDelay());
-        socket.setKeepAlive(networkingOptions.isKeepAlive());
+        socket.setTcpNoDelay(socketOptions.isSocketTcpNoDelay());
+        socket.setKeepAlive(socketOptions.isSocketKeepAlive());
+        socket.setSoTimeout(socketOptions.getSocketTimeout());
+
+        socket.setSendBufferSize(socketOptions.getSocketSendBufferSize());
+        socket.setReceiveBufferSize(socketOptions.getSocketRecvBufferSize());
+
         return true;
     }
 }

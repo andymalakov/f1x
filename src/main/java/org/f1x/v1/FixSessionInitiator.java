@@ -17,7 +17,6 @@ package org.f1x.v1;
 import org.f1x.api.FixVersion;
 import org.f1x.api.SessionID;
 import org.f1x.api.message.MessageParser;
-import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionState;
 
 import java.io.IOException;
@@ -32,8 +31,8 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     private final String host;
     private final int port;
 
-    public FixSessionInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID, FixInitiatorSettings settings, SessionEventListener eventListener) {
-        super(fixVersion, settings, eventListener);
+    public FixSessionInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID, FixInitiatorSettings settings) {
+        super(fixVersion, settings);
         this.host = host;
         this.port = port;
         this.sessionID = sessionID;

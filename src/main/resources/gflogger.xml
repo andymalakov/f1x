@@ -1,3 +1,4 @@
+<!-- Default Logging configuration -->
 <configuration
         xmlns="http://bitbucket.org/vladimir.dolzhenko/gflogger"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

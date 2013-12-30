@@ -61,8 +61,8 @@ public class BufferedFixInitiator extends FixSessionInitiator {
         }
     };
 
-    public BufferedFixInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID, int queueSize, FixInitiatorSettings settings, SessionEventListener eventListener) {
-        super(host, port, fixVersion, sessionID, settings, eventListener);
+    public BufferedFixInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID, int queueSize, FixInitiatorSettings settings) {
+        super(host, port, fixVersion, sessionID, settings);
 
         ring = new ByteRing (queueSize, new BlockingWaitStrategy());
         executor = Executors.newCachedThreadPool();
@@ -106,7 +106,7 @@ public class BufferedFixInitiator extends FixSessionInitiator {
         final String host = (args.length > 0) ? args[0] : "192.168.1.105";
         final int port = (args.length > 1) ? Integer.parseInt(args[1]) : 2508;
         final int queueSize = 64*1024;
-        new BufferedFixInitiator(host, port, FixVersion.FIX44, new SessionIDBean("CLIENT", "SERVER"), queueSize, new FixInitiatorSettings(), null).run();
+        new BufferedFixInitiator(host, port, FixVersion.FIX44, new SessionIDBean("CLIENT", "SERVER"), queueSize, new FixInitiatorSettings()).run();
     }
 
 
