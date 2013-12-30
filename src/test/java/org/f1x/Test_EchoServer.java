@@ -53,7 +53,7 @@ public class Test_EchoServer {
         initiatorThread.start();
 
         if ( ! client.messageCount.await(15, TimeUnit.SECONDS))
-            Assert.fail("Communication failed");
+            Assert.fail("Communication failed (timed out waiting for echo)");
         client.disconnect("End of test");
     }
 

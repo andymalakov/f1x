@@ -96,6 +96,8 @@ public class NoAllocationsTest {
         if ( ! allocationDetector.allocs.isEmpty())
             Assert.fail("There were " + allocationDetector.allocs.size() + " allocations");
         initiator.disconnect("End of test");
+        initiator.close();
+        acceptor.close();
     }
 
 
