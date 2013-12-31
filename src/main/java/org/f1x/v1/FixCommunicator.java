@@ -12,12 +12,29 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.v1;
 
+import org.f1x.api.FixSettings;
+import org.f1x.api.session.FixSession;
+import org.f1x.api.message.fields.EncryptMethod;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 import org.f1x.api.FixVersion;
-import org.f1x.api.SessionID;
+import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.fields.FixTags;
@@ -41,7 +58,7 @@ import java.net.SocketException;
 /**
  * Networking common for FIX Acceptor and FIX Initiator
  */
-public abstract class FixCommunicator implements Runnable {
+public abstract class FixCommunicator implements FixSession {
     private static final int MIN_FIX_MESSAGE_LENGTH = 24; // approx
     private static final int CHECKSUM_LENGTH = 7; // length("10=123|") --check sum always expressed using 3 digits
 
@@ -64,7 +81,7 @@ public abstract class FixCommunicator implements Runnable {
 
     private SessionState state = SessionState.Disconnected;
     protected volatile boolean active = true; // close() sets this to false
-    private final SequenceNumbers seqNum = new SequenceNumbers();
+    private final SequenceNumbers seqNum = new SequenceNumbers(); // hidden for thread-safety reasons
 
     // used by receiver thread only
     private final DefaultMessageParser parser = new DefaultMessageParser();
@@ -94,16 +111,25 @@ public abstract class FixCommunicator implements Runnable {
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
     }
 
+    @Override
+    public MessageBuilder createMessageBuilder() {
+        return new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
+    }
+
+    @Override
     public void setEventListener(SessionEventListener eventListener) {
         this.eventListener = eventListener;
     }
 
+    @Override
     public abstract SessionID getSessionID();
 
-    protected FixSettings getSettings() {
+    @Override
+    public FixSettings getSettings() {
         return settings;
     }
 
+    @Override
     public SessionState getSessionState() {
         return state;
     }
@@ -211,6 +237,8 @@ public abstract class FixCommunicator implements Runnable {
         return remainingSize;
     }
 
+    /** Terminate socket connection (no logout message is sent if session is in process) */
+    @Override
     public void disconnect(String cause) {
         LOGGER.info().append("FIX Disconnect due to ").append(cause).commit();
 
@@ -228,6 +256,8 @@ public abstract class FixCommunicator implements Runnable {
 
     }
 
+    /** Logout current session (if needed) and terminate socket connection. */
+    @Override
     public void close() {
         active = false;
         if (state == SessionState.ApplicationConnected) {
@@ -242,6 +272,7 @@ public abstract class FixCommunicator implements Runnable {
             disconnect("Closing");
     }
 
+    @Override
     public void send(MessageBuilder messageBuilder) throws IOException {
         send(messageBuilder, seqNum.consumeOutbound()); //TODO: Not thread safe!!!
     }
@@ -253,21 +284,24 @@ public abstract class FixCommunicator implements Runnable {
     }
 
     protected void sendLogon(boolean resetSequenceNumbers) throws IOException {
+        if ( ! resetSequenceNumbers)
+            resetSequenceNumbers = settings.isResetSequenceNumbersOnEachLogon();
+
         if (resetSequenceNumbers) {
-            seqNum.reset();
+            seqNum.reset(); //TODO: Not-thread-safe: may happen in parallel with another send()
         }
 
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.LOGON);
-            sessionMessageBuilder.add(FixTags.EncryptMethod, 0); //0=NONE
-            sessionMessageBuilder.add(FixTags.HeartBtInt, 30);
+            sessionMessageBuilder.add(FixTags.EncryptMethod, EncryptMethod.NONE_OTHER);
+            sessionMessageBuilder.add(FixTags.HeartBtInt, settings.getHeartBeatIntervalSec());
             sessionMessageBuilder.add(FixTags.ResetSeqNumFlag, resetSequenceNumbers);
             send(sessionMessageBuilder);
         }
     }
 
-    protected void sendLogout(String cause) throws IOException {
+    protected void sendLogout(CharSequence cause) throws IOException {
         assertSessionState (SessionState.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
@@ -384,10 +418,10 @@ public abstract class FixCommunicator implements Runnable {
     }
 
     protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
-//        if (msgType == 'B')
-//            processInboundNews(parser);
-//        else
-        LOGGER.info().append("Received 35=").append(msgType).commit();
+        if (msgType.length() == 1 && msgType.charAt(0) == 'B')
+            processInboundNews(parser);
+        else
+            LOGGER.info().append("Received 35=").append(msgType).commit();
     }
 
     /** Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state */
@@ -417,7 +451,7 @@ public abstract class FixCommunicator implements Runnable {
     protected void processInboundNews(MessageParser parser) {
         while (parser.next()) {
             if (parser.getTagNum() == FixTags.Text) { // required
-                LOGGER.info().append("Received NEWS: ").append(parser.getCharSequenceValue()).commit();
+                LOGGER.info().append("NEWS: ").append(parser.getCharSequenceValue()).commit();
                 break;
             }
         }

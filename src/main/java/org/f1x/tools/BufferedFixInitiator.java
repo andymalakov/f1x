@@ -12,25 +12,36 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.tools;
 
 import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.ExceptionHandler;
 import org.f1x.SessionIDBean;
+import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.SessionID;
-import org.f1x.api.session.SessionEventListener;
+import org.f1x.api.session.SessionID;
 import org.f1x.io.OutputChannel;
 import org.f1x.io.RingBufferStreamChannel;
-import org.f1x.io.disruptor.BufferLogger;
 import org.f1x.io.disruptor.ByteRing;
 import org.f1x.io.disruptor.MessageProcessorPool;
 import org.f1x.io.disruptor.RingBufferBlockProcessor;
 import org.f1x.io.socket.RingBuffer2StreamProcessor;
-import org.f1x.v1.FixInitiatorSettings;
 import org.f1x.v1.FixSessionInitiator;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.Executor;
@@ -80,9 +91,9 @@ public class BufferedFixInitiator extends FixSessionInitiator {
         //TODO: Not the best thing to create all that each time we reconnect?
         RingBufferBlockProcessor socketSender = new RingBuffer2StreamProcessor(socket.getOutputStream(), exceptionHandler);
 
-        RingBufferBlockProcessor logger = BufferLogger.createLogger(new File("d:\\fixlog.bin"), 8192, exceptionHandler);
+        //TODO: RingBufferBlockProcessor logger = BufferLogger.createLogger(new File("d:\\fixlog.bin"), 8192, exceptionHandler);
 
-        processorPool = new MessageProcessorPool (ring, ring.newBarrier(), exceptionHandler, socketSender, logger);
+        processorPool = new MessageProcessorPool (ring, ring.newBarrier(), exceptionHandler, socketSender); //,logger
 
         ring.addGatingSequences(processorPool.getWorkerSequences());
         processorPool.start(executor);

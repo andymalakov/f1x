@@ -25,10 +25,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.f1x.api.session;
 
-package org.f1x.api.message.types;
+import org.f1x.api.FixSettings;
+import org.f1x.api.message.MessageBuilder;
+import org.f1x.io.socket.ConnectionInterceptor;
 
-public interface StringEnum { //<E extends Enum> {
-    String getCode();
-    byte[] getBytes();
+import java.io.IOException;
+
+public interface FixSession extends Runnable {
+    void setEventListener(SessionEventListener eventListener);
+    void setConnectionInterceptor(ConnectionInterceptor connectionInterceptor);
+
+    SessionID getSessionID();
+    FixSettings getSettings();
+    SessionState getSessionState();
+
+    MessageBuilder createMessageBuilder();
+    void send (MessageBuilder mb) throws IOException;
+
+    void disconnect(String cause);
+    void close();
 }

@@ -26,9 +26,28 @@
  * limitations under the License.
  */
 
-package org.f1x.api.message.types;
+package org.f1x.util;
 
-public interface StringEnum { //<E extends Enum> {
-    String getCode();
-    byte[] getBytes();
+import java.text.ParseException;
+
+public class StoredTimeSource implements TimeSource {
+
+    private long storedTime;
+
+    public StoredTimeSource(String timestamp) throws ParseException {
+        setTime(timestamp);
+    }
+
+    public StoredTimeSource(long  timestamp) {
+        this.storedTime = timestamp;
+    }
+
+    @Override
+    public long currentTimeMillis() {
+        return storedTime;
+    }
+
+    void setTime(String time) {
+        storedTime = TestUtils.parseUTCTimestamp(time);
+    }
 }

@@ -12,10 +12,25 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.v1;
 
+import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.SessionID;
+import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.session.SessionState;
 
@@ -31,6 +46,10 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     private final String host;
     private final int port;
 
+    public FixSessionInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID) {
+        this(host, port, fixVersion, sessionID, new FixInitiatorSettings());
+    }
+
     public FixSessionInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID, FixInitiatorSettings settings) {
         super(fixVersion, settings);
         this.host = host;
@@ -39,7 +58,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     }
 
     @Override
-    protected FixInitiatorSettings getSettings() {
+    public FixInitiatorSettings getSettings() {
         return (FixInitiatorSettings) super.getSettings();
     }
 
