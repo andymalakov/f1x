@@ -88,7 +88,7 @@ public class Test_FixCommunicator {
     @Test
     public void testLogon() throws IOException {
         fix.sendLogon(true);
-        assertFix("8=FIX.4.4|9=73|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|10=160|");
+        assertFix("8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|");
     }
 
     @Test
@@ -122,7 +122,7 @@ public class Test_FixCommunicator {
         }
 
         @Override
-        protected void processInboundLogon(MessageParser parser) throws IOException {
+        protected void processInboundLogon() throws IOException {
         }
 
         @Override

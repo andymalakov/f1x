@@ -66,7 +66,7 @@ final class RawMessageAssembler {
         this.timeSource = timeSource;
         buffer = new byte[maxMessageSize];
 
-        BEGIN_STRING = AsciiUtils.getBytes(FixTags.BeginString + '=' + version.getBeginString() + (char) SOH);
+        BEGIN_STRING = AsciiUtils.getBytes("" + FixTags.BeginString + '=' + version.getBeginString() + (char) SOH);
         System.arraycopy(BEGIN_STRING, 0, buffer, 0, BEGIN_STRING.length);
     }
 
