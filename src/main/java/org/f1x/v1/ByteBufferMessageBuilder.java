@@ -46,6 +46,11 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
         doubleFormatter = new DoubleFormatter(doubleFormatterPrecision);
     }
 
+    public ByteBufferMessageBuilder (byte[] buff, int doubleFormatterPrecision) {
+        buffer = buff;
+        doubleFormatter = new DoubleFormatter(doubleFormatterPrecision);
+    }
+
     @Override
     public void clear() {
         offset = 0;

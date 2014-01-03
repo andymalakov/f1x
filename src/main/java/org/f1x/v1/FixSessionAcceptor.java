@@ -30,6 +30,7 @@ package org.f1x.v1;
 
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.FixVersion;
+import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.session.SessionState;
@@ -77,11 +78,14 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
         assertSessionState(SessionState.Disconnected);
     }
 
+    //TODO: What ensures that LOGON message is the first message we process?
+
     /**
      * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
      */
     @Override
-    protected void processInboundLogon(MessageParser parser) throws IOException {
+    protected void processInboundLogon() throws IOException {
+
         if (getSessionState() == SessionState.SocketConnected) {
             setSessionState(SessionState.ReceivedLogon);
             sendLogon(false);

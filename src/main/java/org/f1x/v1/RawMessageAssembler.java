@@ -29,6 +29,7 @@
 package org.f1x.v1;
 
 import org.f1x.api.FixVersion;
+import org.f1x.api.message.Tools;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.fields.FixTags;
@@ -40,6 +41,17 @@ import org.f1x.util.format.TimestampFormatter;
 
 import java.io.IOException;
 
+/** Assembles message using header information and MessageBuilder. Not thread safe.
+ * The following header fields are used:
+ * <ul>
+ * <li>BodyLength</li>
+ * <li>MsgType</li>
+ * <li>MsgSeqNum</li>
+ * <li>SenderCompID,SenderSubID</li>
+ * <li>TargetCompID,TargetSubID</li>
+ * <li>SendingTime</li>
+ * </ul>
+ */
 final class RawMessageAssembler {
 
     private final static byte SOH = 1;
@@ -54,12 +66,12 @@ final class RawMessageAssembler {
         this.timeSource = timeSource;
         buffer = new byte[maxMessageSize];
 
-        BEGIN_STRING = AsciiUtils.getBytes("8=" + version.getBeginString() + (char) SOH);
+        BEGIN_STRING = AsciiUtils.getBytes(FixTags.BeginString + '=' + version.getBeginString() + (char) SOH);
+        System.arraycopy(BEGIN_STRING, 0, buffer, 0, BEGIN_STRING.length);
     }
 
     void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, OutputChannel out) throws IOException {
         int offset = BEGIN_STRING.length;
-        System.arraycopy(BEGIN_STRING, 0, buffer, 0, offset);
 
         final CharSequence msgType = messageBuilder.getMessageType();
         final CharSequence senderSubId = sessionID.getSenderSubId();
@@ -93,7 +105,7 @@ final class RawMessageAssembler {
 
         offset = messageBuilder.output(buffer, offset);
 
-        int checkSum = calcCheckSum(buffer, offset);  //TODO: Let  MessageBuilder accumulate payload checksum...
+        int checkSum = Tools.calcCheckSum(buffer, offset);  //TODO: Let  MessageBuilder accumulate payload checksum?
         offset = set3DigitIntField(FixTags.CheckSum, checkSum, buffer, offset);
 
         out.write(buffer, 0, offset);
@@ -135,16 +147,5 @@ final class RawMessageAssembler {
         return offset;
     }
 
-    /**
-     * The CheckSum integrity check is calculated by summing the binary value of each character from the "8" of "8=" up to
-     *  and including the <SOH> character immediately preceding the CheckSum tag field and comparing the least significant
-     *  eight bits of the calculated value to the CheckSum value
-     */
-    private static int calcCheckSum(final byte [] buffer, final int length) {
-        int sum = 0;
-        for (int i = 0; i < length; i++) {
-            sum += buffer[i];
-        }
-        return sum & 0xFF;
-    }
+
 }

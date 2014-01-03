@@ -29,8 +29,10 @@
 package org.f1x.v1;
 
 import org.f1x.api.FixSettings;
+import org.f1x.api.message.fields.SessionRejectReason;
 import org.f1x.api.session.FixSession;
 import org.f1x.api.message.fields.EncryptMethod;
+import org.f1x.util.TimeSource;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 import org.f1x.api.FixVersion;
@@ -93,8 +95,11 @@ public abstract class FixCommunicator implements FixSession {
     private final MessageBuilder sessionMessageBuilder;
     private final RawMessageAssembler messageAssembler;
 
+    public FixCommunicator (FixVersion fixVersion, FixSettings settings) {
+        this(fixVersion, settings, RealTimeSource.INSTANCE);
+    }
 
-    public FixCommunicator (FixVersion fixVersion, FixSettings settings ) {
+    protected FixCommunicator (FixVersion fixVersion, FixSettings settings, TimeSource timeSource) {
         this.settings = settings;
 
         this.logInboundMessages = settings.isLogInboundMessages();
@@ -107,7 +112,7 @@ public abstract class FixCommunicator implements FixSession {
         this.beginString = AsciiUtils.getBytes(fixVersion.getBeginString());
 
         sessionMessageBuilder = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
-        messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), RealTimeSource.INSTANCE);
+        messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), timeSource);
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
     }
 
@@ -297,12 +302,17 @@ public abstract class FixCommunicator implements FixSession {
             sessionMessageBuilder.add(FixTags.EncryptMethod, EncryptMethod.NONE_OTHER);
             sessionMessageBuilder.add(FixTags.HeartBtInt, settings.getHeartBeatIntervalSec());
             sessionMessageBuilder.add(FixTags.ResetSeqNumFlag, resetSequenceNumbers);
+
+            if (settings.isLogonWithNextExpectedMsgSeqNum()) {
+                sessionMessageBuilder.add(FixTags.NextExpectedMsgSeqNum, seqNum.getNextInbound());
+            }
+            sessionMessageBuilder.add(FixTags.MaxMessageSize, settings.getMaxInboundMessageSize());
             send(sessionMessageBuilder);
         }
     }
 
     protected void sendLogout(CharSequence cause) throws IOException {
-        assertSessionState (SessionState.ApplicationConnected);
+        assertSessionState(SessionState.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.LOGOUT);
@@ -313,6 +323,10 @@ public abstract class FixCommunicator implements FixSession {
         setSessionState(SessionState.InitiatedLogout);
     }
 
+    /**
+     * Sends FIX Heartbeat(0) message
+     * @param testReqId required when heartbeat is sent in response to TestRequest(1)
+     */
     protected void sendHeartbeat(CharSequence testReqId) throws IOException {
         assertSessionState (SessionState.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
@@ -324,35 +338,105 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    protected void sendReject(int rejectedMsgSeqNum, CharSequence cause) throws IOException {
+    /**
+     * Sends FIX TestRequest(1) message.
+     * @param testReqId Verifies that the opposite application is generating the heartbeat as the result of Test Request (1) and not a normal timeout.
+     *                  The opposite application includes the TestReqID (112) in the resulting Heartbeat(0).
+     *                  Any string can be used as the TestReqID (112) (one suggestion is to use a timestamp string).
+     */
+    protected void sendTestRequest(CharSequence testReqId) throws IOException {
         assertSessionState (SessionState.ApplicationConnected);
+        synchronized (sessionMessageBuilder) {
+            sessionMessageBuilder.clear();
+            sessionMessageBuilder.setMessageType(MsgType.TEST_REQUEST);
+            sessionMessageBuilder.add(FixTags.TestReqID, testReqId);
+            send(sessionMessageBuilder);
+        }
+    }
+
+    /**
+     * @param rejectedMsgSeqNum MsgSeqNum(34) of rejected message
+     * This method sends FIX Reject(3).
+     * @param rejectReason optional reject reason
+     * @param text optional explanation message
+     */
+    protected void sendReject(int rejectedMsgSeqNum, SessionRejectReason rejectReason, CharSequence text) throws IOException {
+        assertSessionState(SessionState.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.REJECT);
             sessionMessageBuilder.add(FixTags.RefSeqNum, rejectedMsgSeqNum);
 
-            if (cause!= null)
-                sessionMessageBuilder.add(FixTags.Text, cause);
+            if (rejectReason != null)
+                sessionMessageBuilder.add(FixTags.SessionRejectReason, rejectReason);
+
+            if (text != null)
+                sessionMessageBuilder.add(FixTags.Text, text);
             send(sessionMessageBuilder);
         }
     }
 
-    protected void sendGapFill(int beginSeqNo, int endSeqNo) throws IOException {
+    /**
+     * This method sends ResendRequest(2).
+     * @param beginSeqNo start of range to resend (inclusive)
+     * @param endSeqNo end of range to resend (inclusive). Zero means infinity (resend up to the latest).
+     */
+    protected void sendResendReq(int beginSeqNo, int endSeqNo) throws IOException {
         assertSessionState (SessionState.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.RESEND_REQUEST);
 
-            if (endSeqNo == 0)
-                endSeqNo = seqNum.consumeOutbound();
-
-            sessionMessageBuilder.add(FixTags.NewSeqNo, endSeqNo);
-            sessionMessageBuilder.add(FixTags.GapFillFlag, true);
-            send(sessionMessageBuilder, beginSeqNo);
+            sessionMessageBuilder.add(FixTags.BeginSeqNo, beginSeqNo);
+            sessionMessageBuilder.add(FixTags.EndSeqNo, endSeqNo);
+            send(sessionMessageBuilder);
         }
     }
 
+    /**
+     * Sends SequenceReset(4) in response to ResendRequest when
+     * resending a range of administrative messages or when resending actual application messages is not appropriate (e.g. stale messages).
+     *
+     * @param beginSeqNo first message of the range (will be used as MsgSeqNum)
+     * @param endSeqNo end of range (pass 0 to resend up to the latest)
+     */
+    protected void sendGapFill(int beginSeqNo, int endSeqNo) throws IOException {
+        assertSessionState (SessionState.ApplicationConnected);
+        synchronized (sessionMessageBuilder) {
+            sessionMessageBuilder.clear();
+            sessionMessageBuilder.setMessageType(MsgType.SEQUENCE_RESET);
 
+            if (endSeqNo == 0)
+                endSeqNo = seqNum.consumeOutbound();
+
+            //TODO: Confirm sessionMessageBuilder.add(FixTags.PossDupFlag, true);
+            sessionMessageBuilder.add(FixTags.NewSeqNo, endSeqNo);
+            sessionMessageBuilder.add(FixTags.GapFillFlag, true);
+            send(sessionMessageBuilder, beginSeqNo);
+
+            //TODO: update seqNum?
+        }
+    }
+
+    /**
+     * Sends SequenceReset(4) in response to ResendRequest when
+     * resending a range of administrative messages or when resending actual application messages is not appropriate (e.g. stale messages).
+     *
+     * @param newSeqNo new sequence number
+     */
+    protected void sendSequenceReset(int newSeqNo) throws IOException { //TODO: Not used at the moment
+        assertSessionState (SessionState.ApplicationConnected);
+        synchronized (sessionMessageBuilder) {
+            sessionMessageBuilder.clear();
+            sessionMessageBuilder.setMessageType(MsgType.SEQUENCE_RESET);
+
+
+            //TODO: Confirm sessionMessageBuilder.add(FixTags.PossDupFlag, true);
+            sessionMessageBuilder.add(FixTags.NewSeqNo, newSeqNo);
+            sessionMessageBuilder.add(FixTags.GapFillFlag, false);
+            send(sessionMessageBuilder, newSeqNo); // In reset mode MsgSeqNum should be ignored
+        }
+    }
 
     private void parseBeginString() throws InvalidFixMessageException {
         if ( ! parser.next())
@@ -424,11 +508,63 @@ public abstract class FixCommunicator implements FixSession {
             LOGGER.info().append("Received 35=").append(msgType).commit();
     }
 
+    /**
+     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
+     */
+    //TODO
+    protected void processInboundLogon(MessageParser parser) throws IOException {
+        int heartbeatInterval = -1; //TODO: Acceptor ensures interval and sends it back with its LOGON
+        int nextExpectedMsgSeqNum = -1;
+        boolean isSequenceNumberReset = false;
+        while (parser.next()) {
+
+            if (parser.getTagNum() == FixTags.HeartBtInt) {
+                heartbeatInterval = parser.getIntValue();
+            } else
+            if (parser.getTagNum() == FixTags.NextExpectedMsgSeqNum) {
+                nextExpectedMsgSeqNum = parser.getIntValue();
+            } else
+            if (parser.getTagNum() == FixTags.ResetSeqNumFlag) {
+                isSequenceNumberReset = parser.getBooleanValue();
+            } else
+            if (parser.getTagNum() == FixTags.PossDupFlag) { // must be part of header
+                if (parser.getBooleanValue())
+                    return; // ignore retransmitted LOGON
+            }
+        }
+        if (isSequenceNumberReset) { // inbound on any side may request sequence reset
+            seqNum.reset();
+        }
+//TODO
+//        if (heartbeatInterval != -1 && heartbeatInterval != settings.getHeartBeatIntervalSec())
+//            throw ConnectionProblemException.HEARTBEAT_INTERVAL_MISMATCH;
+
+        //TODO: Validate that the connection was established with the correct party (SessionID matching)
+//        if (nextExpectedMsgSeqNum > 0) {
+//            //TODO:
+//            if (seqNum.getNextOutbound() < nextExpectedMsgSeqNum)
+//                drop();
+//            else
+//                resend?
+//        }
+        processInboundLogon();
+    }
+
     /** Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state */
-    protected abstract void processInboundLogon(MessageParser parser) throws IOException;
+    protected abstract void processInboundLogon() throws IOException;
 
     @SuppressWarnings("unused")
     protected void processInboundLogout(MessageParser parser) throws IOException {
+        while (parser.next()) {
+            if (parser.getTagNum() == FixTags.PossDupFlag) {
+                if (parser.getBooleanValue())
+                    return; // ignore retransmitted LOGOUT
+            } else
+            if (parser.getTagNum() == FixTags.Text) {
+                LOGGER.info().append("LOGOUT: ").append(parser.getCharSequenceValue()).commit();
+            }
+        }
+
         if (state == SessionState.ApplicationConnected) {
             sendLogout("Responding to LOGOUT request");
             setSessionState(SessionState.SocketConnected);
@@ -441,6 +577,10 @@ public abstract class FixCommunicator implements FixSession {
 
     protected void processInboundTestRequest(MessageParser parser) throws IOException {
         while (parser.next()) {
+            if (parser.getTagNum() == FixTags.PossDupFlag) { // must be part of header
+                if (parser.getBooleanValue())
+                    return; // ignore retransmitted TEST
+            } else
             if (parser.getTagNum() == FixTags.TestReqID) { // required
                 sendHeartbeat(parser.getCharSequenceValue());
                 break;
@@ -472,26 +612,31 @@ public abstract class FixCommunicator implements FixSession {
                 case FixTags.EndSeqNo:  // required
                     endSeqNo = parser.getIntValue();
                     break;
+                case FixTags.PossDupFlag: // All FIX implementations must monitor incoming messages to detect inadvertently retransmitted administrative messages (PossDupFlag flag set indicating a resend).
+                    if (parser.getBooleanValue())
+                        return; // ignore retransmitted LOGON
+                    break;
             }
         }
+
         if (beginSeqNo == -1) {
-            sendReject(msgSeqNum, "Missing BeginSeqNo(7)");
+            sendReject(msgSeqNum, SessionRejectReason.REQUIRED_TAG_MISSING, "Missing BeginSeqNo(7)");
             return;
         }
         if (beginSeqNo == 0) {
-            sendReject(msgSeqNum, "Invalid BeginSeqNo(7)");
+            sendReject(msgSeqNum, SessionRejectReason.VALUE_IS_INCORRECT, "Invalid BeginSeqNo(7)");
             return;
         }
         if (endSeqNo == -1) {
-            sendReject(msgSeqNum, "Missing EndSeqNo(16)");
+            sendReject(msgSeqNum, SessionRejectReason.REQUIRED_TAG_MISSING, "Missing EndSeqNo(16)");
             return;
         }
-        sendGapFill (beginSeqNo, endSeqNo);
+        sendGapFill (beginSeqNo, endSeqNo); //TODO: Temporary until we have MessageStore
     }
 
 
     private void processInboundSequenceReset(MessageParser parser) throws IOException {
-//        boolean isGapFill = false;
+        boolean isGapFill = false;
         int newSeqNum = -1;
         int msgSeqNum = -1;
         while (parser.next()) {
@@ -499,19 +644,24 @@ public abstract class FixCommunicator implements FixSession {
                 case FixTags.NewSeqNo:  // required
                     newSeqNum = parser.getIntValue();
                     break;
-//                case FixTags.GapFillFlag:
-//                    isGapFill = parser.getBooleanValue();
-//                    break;
+                case FixTags.GapFillFlag:
+                    isGapFill = parser.getBooleanValue();
+                    break;
                 case FixTags.MsgSeqNum:  // required
                     msgSeqNum = parser.getIntValue();
                     break;
             }
         }
+        LOGGER.info().append("Processing inbound message sequence reset to ").append(newSeqNum).commit();
         try {
-            seqNum.resetInbound(newSeqNum);
-            LOGGER.info().append("Processed inbound message sequence reset to ").append(newSeqNum).commit();
+            if (isGapFill) {
+                // Gap Fill mode: nothing to do since we are not placing any 'future' messages in the queue
+            } else {
+                // Reset mode
+                seqNum.resetInbound(newSeqNum);
+            }
         } catch (InvalidFixMessageException e) {
-            sendReject(msgSeqNum, e.getMessage());
+            sendReject(msgSeqNum, SessionRejectReason.INCORRECT_DATA_FORMAT_FOR_VALUE, e.getMessage());
         }
     }
 
@@ -521,7 +671,7 @@ public abstract class FixCommunicator implements FixSession {
         while (parser.next()) {
             switch (parser.getTagNum()) {
                 case FixTags.RefSeqNum: refSeqNum = parser.getIntValue(); break;
-                case FixTags.Text:      parser.getByteSequence(text);    break;
+                case FixTags.Text:      parser.getByteSequence(text);     break;
             }
         }
         if (text.length() != 0)

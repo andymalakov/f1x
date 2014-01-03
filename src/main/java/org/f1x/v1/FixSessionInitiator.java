@@ -124,9 +124,9 @@ public class FixSessionInitiator extends FixSocketCommunicator {
         }
     }
 
-    /** Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state */
+    /** Handle inbound LOGON message depending on FIX session role (acceptor/initiator) and current state */
     @Override
-    protected void processInboundLogon(MessageParser parser) throws IOException {
+    protected void processInboundLogon() throws IOException {
         if (getSessionState() == SessionState.InitiatedLogon) {
             setSessionState(SessionState.ApplicationConnected);
             LOGGER.info().append("FIX Session established").commit();

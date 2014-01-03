@@ -28,20 +28,19 @@
 
 package org.f1x.v1;
 
-import org.f1x.util.StoredTimeSource;
-import org.junit.Assert;
-import org.junit.Test;
 import org.f1x.SessionIDBean;
 import org.f1x.api.FixVersion;
-import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.fields.*;
+import org.f1x.api.session.SessionID;
 import org.f1x.io.OutputChannel;
 import org.f1x.util.ByteArrayReference;
+import org.f1x.util.StoredTimeSource;
 import org.f1x.util.TestUtils;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.IOException;
-import java.text.ParseException;
 
 public class Test_RawMessageAssembler {
 
@@ -154,7 +153,7 @@ public class Test_RawMessageAssembler {
     }
 
 
-    private static String format (MessageBuilder mb, SessionID sessionID, int msgSeqNum, String time) throws ParseException, IOException {
+    private static String format (MessageBuilder mb, SessionID sessionID, int msgSeqNum, String time) throws IOException {
         RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, new StoredTimeSource(time));
         TextOutputChannel text = new TextOutputChannel();
         asm.send(sessionID, msgSeqNum, mb, text);

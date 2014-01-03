@@ -35,7 +35,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.*;
-import java.text.ParseException;
 import java.util.Arrays;
 
 public class Test_FileMessageLog {
@@ -47,7 +46,7 @@ public class Test_FileMessageLog {
     private static final byte[] OUTBOUND = AsciiUtils.getBytes("8=FIX.4.4\u00019=65\u000135=0\u000134=2\u000149=CLIENT\u000152=20131223-15:41:17.888\u000156=SERVER\u0001112=TEST\u000110=173\u0001");
 
     @Test
-    public void testLoggingFormat() throws IOException, ParseException {
+    public void testLoggingFormat() throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         FileMessageLog log = new FileMessageLog(baos, new SessionIDBean("TEST", "TEST"), new StoredTimeSource(DATE+'-'+TIME));
 

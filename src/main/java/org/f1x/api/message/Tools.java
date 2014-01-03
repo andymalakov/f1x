@@ -36,4 +36,20 @@ public class Tools {
         return true;
     }
 
+    public static boolean isEmpty(CharSequence value) {
+        return value == null || value.length() == 0;
+    }
+
+    /**
+     * The CheckSum integrity check is calculated by summing the binary value of each character from the "8" of "8=" up to
+     *  and including the SOH character immediately preceding the CheckSum tag field and comparing the least significant
+     *  eight bits of the calculated value to the CheckSum value
+     */
+    public static int calcCheckSum(final byte [] buffer, final int length) {
+        int sum = 0;
+        for (int i = 0; i < length; i++) {
+            sum += buffer[i];
+        }
+        return sum & 0xFF;
+    }
 }

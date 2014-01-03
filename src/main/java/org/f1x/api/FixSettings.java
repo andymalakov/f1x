@@ -47,6 +47,7 @@ public class FixSettings extends SocketOptions {
 
     private String logDirectory;
     private boolean resetSequenceNumbersOnEachLogon;
+    private boolean logonWithNextExpectedMsgSeqNum;
 
     /** Max buffer size for inbound message (used by Socket read) */
     public int getMaxInboundMessageSize() {
@@ -116,5 +117,14 @@ public class FixSettings extends SocketOptions {
 
     public void setResetSequenceNumbersOnEachLogon(boolean resetSequenceNumbersOnEachLogon) {
         this.resetSequenceNumbersOnEachLogon = resetSequenceNumbersOnEachLogon;
+    }
+
+    /** When set, tag NextExpectedMsgSeqNum will be transmitted FIX Logon message */
+    public boolean isLogonWithNextExpectedMsgSeqNum() {
+        return logonWithNextExpectedMsgSeqNum;
+    }
+
+    public void setLogonWithNextExpectedMsgSeqNum(boolean logonWithNextExpectedMsgSeqNum) {
+        this.logonWithNextExpectedMsgSeqNum = logonWithNextExpectedMsgSeqNum;
     }
 }

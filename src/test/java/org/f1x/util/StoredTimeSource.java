@@ -28,13 +28,11 @@
 
 package org.f1x.util;
 
-import java.text.ParseException;
-
 public class StoredTimeSource implements TimeSource {
 
     private long storedTime;
 
-    public StoredTimeSource(String timestamp) throws ParseException {
+    public StoredTimeSource(String timestamp) {
         setTime(timestamp);
     }
 

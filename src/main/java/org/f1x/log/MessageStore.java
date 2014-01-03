@@ -12,18 +12,17 @@
  * limitations under the License.
  */
 
-package org.f1x.v1;
+package org.f1x.log;
 
-public class ConnectionProblemException extends Exception {
-    static final ConnectionProblemException NO_SOCKET_DATA = new ConnectionProblemException ("Disconnected (no more data)");
-    static final ConnectionProblemException HEARTBEAT_INTERVAL_MISMATCH = new ConnectionProblemException ("Heartbeat interval mismatch");
+import org.f1x.util.ByteArrayReference;
 
-    private ConnectionProblemException (String message) {
-        super(message);
-    }
-
-    @Override
-    public Throwable fillInStackTrace () {
-        return null;
-    }
+/**
+ * Goals:
+ * a) Fullfill RESEND requests (usually last N messages before disconnect)
+ * b) Help process Reject/BusinessReject messages
+ */
+public interface MessageStore {
+    void record (int seqNum, byte [] message, int offset, int length);
+    void reset();
+    ByteArrayReference get(int seqNum);
 }
