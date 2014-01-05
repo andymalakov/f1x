@@ -226,7 +226,6 @@
     <output url="file://$PROJECT_DIR$/out" />
   </component>
   <component name="VcsDirectoryMappings">
-    <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
   </component>
   <component name="libraryTable">
@@ -289,7 +288,6 @@
         <root url="jar://$MAVEN_REPOSITORY$/org/gflogger/gflogger/1.0/gflogger-1.0-javadoc.jar!/" />
       </JAVADOC>
       <SOURCES>
-        <root url="file://$JAVA_THIRD_PARTY$/gflogger/src" />
         <root url="jar://$MAVEN_REPOSITORY$/org/gflogger/gflogger/1.0/gflogger-1.0-sources.jar!/" />
       </SOURCES>
     </library>
