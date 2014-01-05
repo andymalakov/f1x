@@ -11,6 +11,7 @@
   <description>F1X Engine</description>
 
   <!-- set global properties for this script -->
+  <property file="user.properties"/>
   <property file="build.properties"/>
   <property environment="env"/>
 
