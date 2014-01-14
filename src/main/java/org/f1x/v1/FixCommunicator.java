@@ -242,6 +242,20 @@ public abstract class FixCommunicator implements FixSession {
         return remainingSize;
     }
 
+    /** Send LOGOUT but do not drop socket connection */
+    @Override
+    public void logout(String cause) {
+        LOGGER.info().append("FIX Logout due to ").append(cause).commit();
+
+        if (state == SessionState.ApplicationConnected) {
+            try {
+                sendLogout(cause);
+            } catch (IOException e) {
+                LOGGER.warn().append("Error logging out from FIX session: ").append(e).commit();
+            }
+        }
+    }
+
     /** Terminate socket connection (no logout message is sent if session is in process) */
     @Override
     public void disconnect(String cause) {
@@ -258,8 +272,9 @@ public abstract class FixCommunicator implements FixSession {
         } catch (IOException e) {
             LOGGER.warn().append("Error closing socket: ").append(e).commit();
         }
-
     }
+
+
 
     /** Logout current session (if needed) and terminate socket connection. */
     @Override
@@ -463,40 +478,45 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void processInboundMessage(MessageParser parser, CharSequence msgType) throws IOException, InvalidFixMessageException {
-        if (getSessionState() == SessionState.ApplicationConnected) {
-            boolean processed = true;
-            if (msgType.length() == 1) { // All session-level messages have MsgType expressed using single char
-                switch (msgType.charAt(0)) {
-                    case AdminMessageTypes.LOGON:
-                        processInboundLogon(parser); break;
-                    case AdminMessageTypes.LOGOUT:
-                        processInboundLogout(parser); break;
-                    case AdminMessageTypes.HEARTBEAT:
-                        LOGGER.info().append("Received hearbeat from other party").commit();
-                        break; //TODO: Handle heartbeats later
-                    case AdminMessageTypes.TEST:
-                        processInboundTestRequest(parser); break;
-                    case AdminMessageTypes.RESEND:
-                        processInboundResendRequest(parser); break;
-                    case AdminMessageTypes.REJECT:
-                        processInboundReject(parser); break;
-                    case AdminMessageTypes.RESET:
-                        processInboundSequenceReset(parser); break;
-                    default:
-                        processed = false;
+        switch (getSessionState()) {
+            case ApplicationConnected:
+            case InitiatedLogout:
+                boolean processed = true;
+                if (msgType.length() == 1) { // All session-level messages have MsgType expressed using single char
+                    switch (msgType.charAt(0)) {
+                        case AdminMessageTypes.LOGON:
+                            processInboundLogon(parser); break;
+                        case AdminMessageTypes.LOGOUT:
+                            processInboundLogout(parser); break;
+                        case AdminMessageTypes.HEARTBEAT:
+                            LOGGER.debug().append("Received hearbeat from other party").commit();
+                            break; //TODO: Handle heartbeats later
+                        case AdminMessageTypes.TEST:
+                            processInboundTestRequest(parser); break;
+                        case AdminMessageTypes.RESEND:
+                            processInboundResendRequest(parser); break;
+                        case AdminMessageTypes.REJECT:
+                            processInboundReject(parser); break;
+                        case AdminMessageTypes.RESET:
+                            processInboundSequenceReset(parser); break;
+                        default:
+                            processed = false;
+                    }
+                } else {
+                    processed = false;
                 }
-            } else {
-                processed = false;
-            }
-            if ( ! processed)
-                processInboundAppMessage(msgType, parser);
-
-        } else {
-            if (msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.LOGON) {
-                processInboundLogon(parser);
-            } else {
-                throw InvalidFixMessageException.LOGON_INCOMPLETE;
-            }
+                if ( ! processed)
+                    processInboundAppMessage(msgType, parser);
+                break;
+            case InitiatedLogon:
+                if (msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.LOGON) {
+                    processInboundLogon(parser);
+                } else {
+                    throw InvalidFixMessageException.LOGON_INCOMPLETE;
+                }
+                break;
+            default:
+                LOGGER.warn().append("Received 35=").append(msgType).append(" in state ").append(getSessionState()).commit();
         }
 
     }
@@ -511,7 +531,6 @@ public abstract class FixCommunicator implements FixSession {
     /**
      * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
      */
-    //TODO
     protected void processInboundLogon(MessageParser parser) throws IOException {
         int heartbeatInterval = -1; //TODO: Acceptor ensures interval and sends it back with its LOGON
         int nextExpectedMsgSeqNum = -1;
