@@ -82,7 +82,7 @@ public class Test_FixCommunicator {
     @Test
     public void testGapFill() throws IOException {
         fix.sendGapFill(1, 2);
-        assertFix("8=FIX.4.4|9=66|35=4|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|36=2|123=Y|10=085|");
+        assertFix("8=FIX.4.4|9=71|35=4|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|43=Y|36=2|123=Y|10=079|");
     }
 
     @Test
