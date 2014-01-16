@@ -44,12 +44,12 @@ public interface FixSession extends Runnable {
     MessageBuilder createMessageBuilder();
     void send (MessageBuilder mb) throws IOException;
 
-    /** Send LOGOUT but do not drop socket connection */
-    void logout(String cause);
-
     /** Terminate socket connection (no logout message is sent if session is in process) */
     void disconnect(String cause);
 
-    /** Logout current session (if needed) and terminate socket connection. */
+    /** Terminate socket connection (send logout message if session is in process) */
+    void logout(String cause);
+
+    /** Send LOGOUT (if needed) and terminate socket connection. */
     void close();
 }

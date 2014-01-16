@@ -24,7 +24,7 @@ final class InvalidFixMessageException extends Exception {
     static final InvalidFixMessageException MISSING_MSG_TYPE = new InvalidFixMessageException ("Message has no MsgType(35) tag");
     static final InvalidFixMessageException MESSAGE_TOO_LARGE = new InvalidFixMessageException ("Message is too large");
     static final InvalidFixMessageException RESET_BELOW_CURRENT_SEQ_LARGE = new InvalidFixMessageException ("SequenceReset can only increase the sequence number");
-    static final InvalidFixMessageException LOGON_INCOMPLETE = new InvalidFixMessageException ("Application-level connection is not yet established (Unfinished LOGON)");
+    static final InvalidFixMessageException EXPECTING_LOGON_MESSAGE = new InvalidFixMessageException ("Application-level connection is not yet established (Unfinished LOGON)");
 
     private InvalidFixMessageException (String message) {
         super(message);
