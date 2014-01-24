@@ -26,6 +26,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.v1;
 
 import org.f1x.SessionIDBean;
@@ -113,7 +127,7 @@ public class Test_RawMessageAssembler {
     public void testNewOrderSingleEncodingPerformance () throws Exception {
 
         final MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
-        final RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, new StoredTimeSource("20121009-13:44:49.421"));
+        final RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, StoredTimeSource.makeFromUTCTimestamp("20121009-13:44:49.421"));
         final SessionID sessionID = new SessionIDBean("A12345B", "2DEFGH4", "COMPARO", "G");
         NullOutputChannel nul = new NullOutputChannel();
 
@@ -154,7 +168,7 @@ public class Test_RawMessageAssembler {
 
 
     private static String format (MessageBuilder mb, SessionID sessionID, int msgSeqNum, String time) throws IOException {
-        RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, new StoredTimeSource(time));
+        RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, StoredTimeSource.makeFromUTCTimestamp(time));
         TextOutputChannel text = new TextOutputChannel();
         asm.send(sessionID, msgSeqNum, mb, text);
         return text.toString();

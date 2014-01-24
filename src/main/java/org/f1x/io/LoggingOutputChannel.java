@@ -29,8 +29,11 @@ public final class LoggingOutputChannel implements OutputChannel {
 
     @Override
     public void write(byte[] buffer, int offset, int length) throws IOException {
-        delegate.write(buffer, offset, length);
-        logger.logOutbound(buffer, 0, length); // latency first
+        try {
+            delegate.write(buffer, offset, length);
+        } finally { //TODO: Should we do this in case of exception
+            logger.logOutbound(buffer, 0, length); // latency first
+        }
     }
 
     @Override

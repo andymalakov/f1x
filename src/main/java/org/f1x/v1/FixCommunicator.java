@@ -26,6 +26,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.v1;
 
 import org.f1x.api.FixSettings;
@@ -150,9 +164,10 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void onSessionStateChanged(final SessionState oldState, final SessionState newState) {
-        LOGGER.info().append("FIX Connection changed state ").append(oldState).append(" => ").append(newState).commit();
+        SessionID sessionID = getSessionID();
+        LOGGER.info().append("Session ").append(sessionID).append(" changed state ").append(oldState).append(" => ").append(newState).commit();
         if (eventListener != null)
-            eventListener.onStateChanged(getSessionID(), oldState, newState);
+            eventListener.onStateChanged(sessionID, oldState, newState);
     }
 
     protected final void assertSessionState(SessionState expectedState) {
@@ -175,7 +190,7 @@ public abstract class FixCommunicator implements FixSession {
         LOGGER.info().append("Processing FIX Session").commit();
         try {
             int offset = 0;
-            while (active) {
+            while (active) { ///prevents logged out session from re-connect
                 int bytesRead = in.read(inboundMessageBuffer, offset, inboundMessageBuffer.length - offset);
                 if (bytesRead <= 0) {
                     throw ConnectionProblemException.NO_SOCKET_DATA;
@@ -185,17 +200,26 @@ public abstract class FixCommunicator implements FixSession {
             }
             LOGGER.error().append("Finishing FIX session").commit();
         } catch (InvalidFixMessageException e) {
-            LOGGER.error().append("Protocol error").append(e).commit();
-            disconnect("Protocol Error");
+            errorProcessingMessage("Protocol Error", e, false);
+        } catch (ConnectionProblemException e) {
+            errorProcessingMessage("Connection Problem", e, false);
         } catch (SocketException e) {
-            LOGGER.error().append("Socket error").append(e).commit();
-            disconnect("Socket Error");
+            errorProcessingMessage("Socket Error (Other side disconnected?)", e, false);
         } catch (Exception e) {
-            LOGGER.error().append("General error").append(e).commit();
-            disconnect("General Error");
+            errorProcessingMessage("General error", e, true);
         }
 
         assertSessionState(SessionState.Disconnected);
+    }
+
+    private void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
+        if (active) {
+            if (logStackTrace)
+                LOGGER.error().append(errorText).append(" : ").append(e).commit();
+            else
+                LOGGER.error().append(errorText).append(" : ").append(e.getMessage()).commit();
+            disconnect(errorText);
+        }
     }
 
 
@@ -242,6 +266,20 @@ public abstract class FixCommunicator implements FixSession {
         return remainingSize;
     }
 
+    /** Send LOGOUT but do not drop socket connection */
+    @Override
+    public void logout(String cause) {
+        LOGGER.info().append("Initiating FIX Logout: ").append(cause).commit();
+
+        if (state == SessionState.ApplicationConnected) {
+            try {
+                sendLogout(cause);
+            } catch (IOException e) {
+                LOGGER.warn().append("Error logging out from FIX session: ").append(e).commit();
+            }
+        }
+    }
+
     /** Terminate socket connection (no logout message is sent if session is in process) */
     @Override
     public void disconnect(String cause) {
@@ -258,8 +296,9 @@ public abstract class FixCommunicator implements FixSession {
         } catch (IOException e) {
             LOGGER.warn().append("Error closing socket: ").append(e).commit();
         }
-
     }
+
+
 
     /** Logout current session (if needed) and terminate socket connection. */
     @Override
@@ -409,7 +448,7 @@ public abstract class FixCommunicator implements FixSession {
             if (endSeqNo == 0)
                 endSeqNo = seqNum.consumeOutbound();
 
-            //TODO: Confirm sessionMessageBuilder.add(FixTags.PossDupFlag, true);
+            sessionMessageBuilder.add(FixTags.PossDupFlag, true);
             sessionMessageBuilder.add(FixTags.NewSeqNo, endSeqNo);
             sessionMessageBuilder.add(FixTags.GapFillFlag, true);
             send(sessionMessageBuilder, beginSeqNo);
@@ -424,7 +463,7 @@ public abstract class FixCommunicator implements FixSession {
      *
      * @param newSeqNo new sequence number
      */
-    protected void sendSequenceReset(int newSeqNo) throws IOException { //TODO: Not used at the moment
+    protected void sendSequenceReset(int newSeqNo) throws IOException {
         assertSessionState (SessionState.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
@@ -463,55 +502,62 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void processInboundMessage(MessageParser parser, CharSequence msgType) throws IOException, InvalidFixMessageException {
-        if (getSessionState() == SessionState.ApplicationConnected) {
-            boolean processed = true;
-            if (msgType.length() == 1) { // All session-level messages have MsgType expressed using single char
-                switch (msgType.charAt(0)) {
-                    case AdminMessageTypes.LOGON:
-                        processInboundLogon(parser); break;
-                    case AdminMessageTypes.LOGOUT:
-                        processInboundLogout(parser); break;
-                    case AdminMessageTypes.HEARTBEAT:
-                        LOGGER.info().append("Received hearbeat from other party").commit();
-                        break; //TODO: Handle heartbeats later
-                    case AdminMessageTypes.TEST:
-                        processInboundTestRequest(parser); break;
-                    case AdminMessageTypes.RESEND:
-                        processInboundResendRequest(parser); break;
-                    case AdminMessageTypes.REJECT:
-                        processInboundReject(parser); break;
-                    case AdminMessageTypes.RESET:
-                        processInboundSequenceReset(parser); break;
-                    default:
-                        processed = false;
+        switch (getSessionState()) {
+            case ApplicationConnected:
+            case InitiatedLogout:
+                processInSessionMessage(parser, msgType);
+                break;
+            case SocketConnected:
+            case InitiatedLogon:
+                if (msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.LOGON) {
+                    processInboundLogon(parser);
+                } else {
+                    throw InvalidFixMessageException.EXPECTING_LOGON_MESSAGE;
                 }
-            } else {
-                processed = false;
-            }
-            if ( ! processed)
-                processInboundAppMessage(msgType, parser);
-
-        } else {
-            if (msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.LOGON) {
-                processInboundLogon(parser);
-            } else {
-                throw InvalidFixMessageException.LOGON_INCOMPLETE;
-            }
+                break;
+            default:
+                LOGGER.warn().append("Received unexpected message (35=").append(msgType).append(") in state ").append(getSessionState()).commit();
+                //TODO: sendReject();
         }
 
     }
 
+    private void processInSessionMessage(MessageParser parser, CharSequence msgType) throws IOException {
+        boolean processed = true;
+        if (msgType.length() == 1) { // All session-level messages have MsgType expressed using single char
+            switch (msgType.charAt(0)) {
+                case AdminMessageTypes.LOGON:
+                    processInboundLogon(parser); break;
+                case AdminMessageTypes.LOGOUT:
+                    processInboundLogout(parser); break;
+                case AdminMessageTypes.HEARTBEAT:
+                    LOGGER.debug().append("Received hearbeat from other party").commit();
+                    break; //TODO: Handle heartbeats later
+                case AdminMessageTypes.TEST:
+                    processInboundTestRequest(parser); break;
+                case AdminMessageTypes.RESEND:
+                    processInboundResendRequest(parser); break;
+                case AdminMessageTypes.REJECT:
+                    processInboundReject(parser); break;
+                case AdminMessageTypes.RESET:
+                    processInboundSequenceReset(parser); break;
+                default:
+                    processed = false;
+            }
+        } else {
+            processed = false;
+        }
+        if ( ! processed)
+            processInboundAppMessage(msgType, parser);
+    }
+
     protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
-        if (msgType.length() == 1 && msgType.charAt(0) == 'B')
-            processInboundNews(parser);
-        else
-            LOGGER.info().append("Received 35=").append(msgType).commit();
+        // by default do nothing
     }
 
     /**
      * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
      */
-    //TODO
     protected void processInboundLogon(MessageParser parser) throws IOException {
         int heartbeatInterval = -1; //TODO: Acceptor ensures interval and sends it back with its LOGON
         int nextExpectedMsgSeqNum = -1;
@@ -532,9 +578,13 @@ public abstract class FixCommunicator implements FixSession {
                     return; // ignore retransmitted LOGON
             }
         }
-        if (isSequenceNumberReset) { // inbound on any side may request sequence reset
-            seqNum.reset();
-        }
+
+//TODO: Actually responder may mimic inbound logon here, need smarter logic
+//        if (isSequenceNumberReset) { // inbound on any side may request sequence reset
+//            if (getSessionState() != SessionState.InitiatedLogon && ! settings.isResetSequenceNumbersOnEachLogon())
+//                seqNum.reset();
+//        }
+
 //TODO
 //        if (heartbeatInterval != -1 && heartbeatInterval != settings.getHeartBeatIntervalSec())
 //            throw ConnectionProblemException.HEARTBEAT_INTERVAL_MISMATCH;
@@ -569,7 +619,7 @@ public abstract class FixCommunicator implements FixSession {
             sendLogout("Responding to LOGOUT request");
             setSessionState(SessionState.SocketConnected);
         } else if (state == SessionState.InitiatedLogout) {
-            setSessionState(SessionState.SocketConnected);
+            disconnect("Logout received");
         } else {
             LOGGER.info().append("Unexpected LOGOUT").commit();
         }
@@ -588,14 +638,14 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    protected void processInboundNews(MessageParser parser) {
-        while (parser.next()) {
-            if (parser.getTagNum() == FixTags.Text) { // required
-                LOGGER.info().append("NEWS: ").append(parser.getCharSequenceValue()).commit();
-                break;
-            }
-        }
-    }
+//    protected void processInboundNews(MessageParser parser) {
+//        while (parser.next()) {
+//            if (parser.getTagNum() == FixTags.Text) { // required
+//                LOGGER.info().append("NEWS: ").append(parser.getCharSequenceValue()).commit();
+//                break;
+//            }
+//        }
+//    }
 
     private void processInboundResendRequest(MessageParser parser) throws IOException {
         int msgSeqNum = -1;

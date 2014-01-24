@@ -119,7 +119,6 @@ public class SimpleFixInitiator extends FixSessionInitiator {
                     break;
             }
         }
-        //LOG.info("Execution report: order " + clOrdId + " event " + execType);
     }
 
     protected void start () throws InterruptedException, IOException {

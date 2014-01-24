@@ -25,6 +25,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.v1;
 
 import junit.framework.Assert;
@@ -82,7 +96,7 @@ public class Test_FixCommunicator {
     @Test
     public void testGapFill() throws IOException {
         fix.sendGapFill(1, 2);
-        assertFix("8=FIX.4.4|9=66|35=4|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|36=2|123=Y|10=085|");
+        assertFix("8=FIX.4.4|9=71|35=4|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|43=Y|36=2|123=Y|10=079|");
     }
 
     @Test
@@ -105,7 +119,7 @@ public class Test_FixCommunicator {
         private final SessionID sessionID = new SessionIDBean("CLIENT", "SERVER");
 
         public TestFixCommunicator(OutputChannel out) {
-            super(FixVersion.FIX44, new FixSettings(), new StoredTimeSource("20140101-10:10:10.100"));
+            super(FixVersion.FIX44, new FixSettings(), StoredTimeSource.makeFromUTCTimestamp("20140101-10:10:10.100"));
 
             connect(new EmptyInputChannel(), out);
 

@@ -44,6 +44,12 @@ public interface FixSession extends Runnable {
     MessageBuilder createMessageBuilder();
     void send (MessageBuilder mb) throws IOException;
 
+    /** Terminate socket connection (no logout message is sent if session is in process) */
     void disconnect(String cause);
+
+    /** Terminate socket connection (send logout message if session is in process) */
+    void logout(String cause);
+
+    /** Send LOGOUT (if needed) and terminate socket connection. */
     void close();
 }
