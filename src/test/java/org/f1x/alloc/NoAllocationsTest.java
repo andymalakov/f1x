@@ -26,6 +26,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.alloc;
 
 import com.google.monitoring.runtime.instrumentation.AllocationRecorder;
@@ -58,8 +72,23 @@ public class NoAllocationsTest {
     private static final String INITIATOR_SENDER_ID = "INITIATOR";
     private static final String ACCEPTOR_SENDER_ID = "ACCEPTOR";
 
+    private static class TestObject {
+
+        public TestObject(long orderId) {
+            if (System.currentTimeMillis() == orderId)
+                System.err.println("Never"); // prevent hotspot from optimizing this out
+        }
+    }
+
+
     private static SimpleFixInitiator createInitiator(int port) {
-        return new SimpleFixInitiator("localhost", port, new SessionIDBean(ACCEPTOR_SENDER_ID, INITIATOR_SENDER_ID));
+        return new SimpleFixInitiator("localhost", port, new SessionIDBean(ACCEPTOR_SENDER_ID, INITIATOR_SENDER_ID)) {
+            @Override
+            public void sendNewOrder(long orderId) throws IOException {
+                super.sendNewOrder(orderId);
+                new TestObject(orderId);
+            }
+        };
     }
 
     private static SimpleFixAcceptor createAcceptor(int port) {
@@ -107,6 +136,9 @@ public class NoAllocationsTest {
         }
         Thread.sleep(1000);
         allocationDetector.enabled = false;
+        if ( ! allocationDetector.isTestObjectAllocatonsDetected)
+            Assert.fail("Allocation detector is not working properly. Check that you added -agent:allocation.jar JVM argument");
+
         if ( ! allocationDetector.allocs.isEmpty())
             Assert.fail("There were " + allocationDetector.allocs.size() + " allocations");
         initiator.disconnect("End of test");
@@ -121,6 +153,7 @@ public class NoAllocationsTest {
     }
 
     private static class AllocationDetector implements Sampler {
+        boolean isTestObjectAllocatonsDetected = false;
         final List<Class> allocs = Collections.synchronizedList(new ArrayList<Class>(10000));
         volatile boolean enabled;
 
@@ -133,8 +166,13 @@ public class NoAllocationsTest {
         @Override
         public void sampleAllocation(int count, String desc, Object newObj, long size) {
             //System.out.println("I just allocated the object " + newObj + " of type " + desc + " whose size is " + size);
-            if (enabled)
-                allocs.add(newObj.getClass());
+            if (enabled) {
+                Class allocatedClass = newObj.getClass();
+                if (allocatedClass == TestObject.class)
+                    isTestObjectAllocatonsDetected = true;
+                else
+                    allocs.add(allocatedClass);
+            }
         }
     }
 }
