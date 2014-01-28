@@ -26,6 +26,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.tools;
 
 import org.f1x.SessionIDBean;
@@ -39,26 +53,17 @@ import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /** Simple FIX acceptor that echos back all inbound application messages */
 public class EchoServer extends SingleSessionAcceptor {
 
     public EchoServer(int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        super(null, bindPort, sessionID, new EchoServerSessionAcceptor(FixVersion.FIX44, settings));
+        this(null, bindPort, sessionID, settings);
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException {
-
-        final SimpleFixAcceptor acceptor = new SimpleFixAcceptor(2508, new SessionIDBean("SERVER", "CLIENT"), new FixAcceptorSettings());
-
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                acceptor.close();
-                LOGGER.info().append("Exiting...").commit();
-            }
-        });
-
-        acceptor.run();
+    public EchoServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
+        super(host, bindPort, sessionID, new EchoServerSessionAcceptor(FixVersion.FIX44, settings));
     }
 
     private static class EchoServerSessionAcceptor extends FixSessionAcceptor {
@@ -80,9 +85,24 @@ public class EchoServer extends SingleSessionAcceptor {
                     mb.add(tag, parser.getCharSequenceValue());
                 }
             }
-
             send(mb);
         }
+    }
 
+    public static void main (String [] args) throws InterruptedException, IOException {
+        int port = Integer.parseInt(args[0]);
+        String host = (args.length > 1) ? args[1] : null;
+        final EchoServer server = new EchoServer(host, port, new SessionIDBean("SERVER", "CLIENT"), new FixAcceptorSettings());
+
+        final Thread acceptorThread = new Thread(server, "EchoServer");
+        acceptorThread.start();
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                LOGGER.info().append("Exiting...").commit();
+                server.close();
+            }
+        });
     }
 }
