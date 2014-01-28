@@ -26,6 +26,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.log.file;
 
 import org.f1x.util.TimeSource;
@@ -37,18 +51,26 @@ import org.f1x.util.AsciiUtils;
 import org.f1x.util.format.TimeOfDayFormatter;
 
 import java.io.*;
+import java.net.URLEncoder;
 
 public class FileMessageLog extends Thread implements MessageLog {
-    protected static final GFLog LOGGER = GFLogFactory.getLog(FileMessageLog.class);
+    private static final byte [] IN_PREFIX =  AsciiUtils.getBytes("IN >");
+    private static final byte [] OUT_PREFIX = AsciiUtils.getBytes("OUT>");
+    private static final GFLog LOGGER = GFLogFactory.getLog(FileMessageLog.class);
     private final TimeSource timeSource;
-    private final OutputStream os;
+    private final int flushPeriod;
+
     private final Object lock = new Object();
-    private final byte [] timestampBuffer = new byte [TimeOfDayFormatter.LENGTH];
+    private OutputStream os; //guarded by lock
+    private int bytesWritten; //guarded by lock
+    //private int fileNameSuffix = 1;  //TODO: Switch to another file as soon as file size reaches certain limit
+    private final byte [] timestampBuffer = new byte [TimeOfDayFormatter.LENGTH]; //guarded by lock
     private volatile boolean active = true;
 
-    public FileMessageLog(File dir, SessionID sessionID, TimeSource timeSource) {
-        super("Log flusher for " + sessionID); //TODO: Alloc
+    public FileMessageLog(File dir, SessionID sessionID, TimeSource timeSource, int flushPeriod) {
+        super("Log flusher for " + sessionID);
         this.timeSource = timeSource;
+        this.flushPeriod = flushPeriod;
         try {
             File file = new File (dir, encodeAsLogFilename(sessionID));
             this.os = new BufferedOutputStream(new FileOutputStream(file, true), 8192);
@@ -57,27 +79,26 @@ public class FileMessageLog extends Thread implements MessageLog {
         }
     }
 
-    public FileMessageLog(OutputStream os, SessionID sessionID, TimeSource timeSource) {
-        super("Log flusher for " + sessionID); //TODO: Alloc
-        this.os = os;
-        this.timeSource = timeSource;
+
+    String encodeAsLogFilename(SessionID sessionID) {
+        String result = sessionID.getSenderCompId().toString() + '-' + sessionID.getTargetCompId().toString() /* + '.' + (fileNameSuffix)*/ + ".log"; //TODO: Something better please
+
+        try {
+            return URLEncoder.encode(result, "US-ASCII");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static String encodeAsLogFilename(SessionID sessionID) {
-        return sessionID.getSenderCompId().toString() + '-' + sessionID.getTargetCompId().toString() + ".log"; //TODO: Something better please
-    }
-
-    static final byte [] IN =  AsciiUtils.getBytes("IN >");
-    static final byte [] OUT = AsciiUtils.getBytes("OUT>");
 
     @Override
     public void logInbound(byte[] buffer, int offset, int length) {
-        log(IN, buffer, offset, length);
+        log(IN_PREFIX, buffer, offset, length);
     }
 
     @Override
     public void logOutbound(byte[] buffer, int offset, int length) {
-        log(OUT, buffer, offset, length);
+        log(OUT_PREFIX, buffer, offset, length);
     }
 
     private void log(byte [] prefix, byte[] buffer, int offset, int length) {
@@ -90,8 +111,9 @@ public class FileMessageLog extends Thread implements MessageLog {
                 os.write(' ');
                 os.write(buffer, offset, length);
                 os.write(Character.LINE_SEPARATOR);
-            }
 
+                bytesWritten += timestampBuffer.length + prefix.length + length + 3;
+            }
         } catch (IOException e) {
             LOGGER.error().append("Error writing FIX message into the log.").append(e).commit();
         }
@@ -100,27 +122,40 @@ public class FileMessageLog extends Thread implements MessageLog {
     @Override
     public void close() {
         active = false;
+
+        try {
+            synchronized (lock) {
+                os.close();
+            }
+        } catch (IOException e) {
+            LOGGER.error().append("Error closing to FIX log").append(e).commit();
+        }
         if (FileMessageLog.this.isAlive())
             FileMessageLog.this.interrupt();
     }
 
     @Override
     public void run () {
+
+        int lastBytesWritten = 0;
         while (active) {
             try {
                 synchronized (lock) {
-                    os.flush();
+                    if (lastBytesWritten !=  bytesWritten) {
+                        os.flush();
+                        lastBytesWritten = bytesWritten;
+                    }
                 }
-                Thread.sleep(5000); //TODO: Add parameter
+                timeSource.sleep(flushPeriod);
             } catch (Exception e) {
                 if (active  || ! ( e instanceof InterruptedException))
-                    LOGGER.error().append("Error appending to FIX log").append(e).commit();
+                    LOGGER.error().append("Error writing FIX log").append(e).commit();
             }
         }
         try {
             os.close();
         } catch (IOException e) {
-            LOGGER.error().append("Error closing to FIX log").append(e).commit();
+            LOGGER.error().append("Error closing FIX log").append(e).commit();
         }
     }
 }
