@@ -26,9 +26,24 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.log.nio;
 
 
+import org.f1x.util.TestUtils;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,7 +76,7 @@ public class Test_MemMappedMessageLogger {
 
         logger.close();
 
-        String content = readText(logFile);
+        String content = TestUtils.readText(logFile);
         int tailIndex = content.indexOf(new String(MemMappedMessageLogger.TAIL));
         if (tailIndex < 0)
             tailIndex = content.indexOf(new String(MemMappedMessageLogger.EOF));
@@ -71,26 +86,7 @@ public class Test_MemMappedMessageLogger {
 
     }
 
-    private static String readText(File logFile) {
-        StringBuilder sb = new StringBuilder();
 
-        try {
-            LineNumberReader reader = new LineNumberReader(new FileReader(logFile));
-            while(true) {
-
-                String line = reader.readLine();
-                if (line == null)
-                    break;
-
-                if (sb.length() > 0)
-                    sb.append("\n");
-                sb.append(line);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Can't read file", e);
-        }
-        return sb.toString();
-    }
 
     private static byte[] makeBytes(int msgId) {
         return ("Message#" + msgId).getBytes();
