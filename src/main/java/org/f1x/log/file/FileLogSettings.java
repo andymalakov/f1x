@@ -12,12 +12,28 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.log.file;
 
 public class FileLogSettings {
 
     private String logDir;
-    private int flushPeriod;
+    private int flushPeriod = 15000;
+    private int fileBufferSize = 8192;
+    private long maxLogSize = 0;
 
     public FileLogSettings() {
         this.logDir = logDir;
@@ -41,5 +57,17 @@ public class FileLogSettings {
 
     public void setFlushPeriod(int flushPeriod) {
         this.flushPeriod = flushPeriod;
+    }
+
+    public int getFileBufferSize() {
+        return fileBufferSize;
+    }
+
+    public void setFileBufferSize(int fileBufferSize) {
+        this.fileBufferSize = fileBufferSize;
+    }
+
+    public long getMaxLogSize() {
+        return maxLogSize;
     }
 }
