@@ -82,6 +82,19 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.log.file.nio;
 
 import org.f1x.log.MessageLog;
@@ -101,6 +114,11 @@ public class MemMappedMessageLogger implements MessageLog {
     private final RandomAccessFile raf;
     private final MappedByteBuffer out;
 
+    /**
+     *
+     * @param file
+     * @param maxSize This setting defines maximum size of log file. Leave at zero to disable this feature.
+     */
     public MemMappedMessageLogger (File file, int maxSize) {
         try {
             raf = new RandomAccessFile(file, "rw");

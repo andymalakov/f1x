@@ -68,6 +68,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.tools;
 
 import org.f1x.SessionIDBean;
@@ -77,12 +91,12 @@ import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.FixAcceptorSettings;
+import org.f1x.log.NullLogFactory;
 import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
 import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /** Simple FIX acceptor that echos back all inbound application messages */
 public class EchoServer extends SingleSessionAcceptor {
@@ -93,6 +107,8 @@ public class EchoServer extends SingleSessionAcceptor {
 
     public EchoServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
         super(host, bindPort, sessionID, new EchoServerSessionAcceptor(FixVersion.FIX44, settings));
+
+
     }
 
     private static class EchoServerSessionAcceptor extends FixSessionAcceptor {
@@ -101,6 +117,8 @@ public class EchoServer extends SingleSessionAcceptor {
         public EchoServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
             super(fixVersion, settings);
             mb = createMessageBuilder();
+
+            setMessageLogFactory(new NullLogFactory());
         }
 
         @Override
@@ -131,8 +149,8 @@ public class EchoServer extends SingleSessionAcceptor {
 
 
         FixAcceptorSettings settings = new FixAcceptorSettings();
-        final EchoServer server = new EchoServer(host, port, new SessionIDBean("SERVER", "CLIENT"), settings);
 
+        final EchoServer server = new EchoServer(host, port, new SessionIDBean("SERVER", "CLIENT"), settings);
         final Thread acceptorThread = new Thread(server, "EchoServer");
         acceptorThread.start();
 

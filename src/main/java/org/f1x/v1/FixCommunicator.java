@@ -68,6 +68,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.v1;
 
 import org.f1x.api.FixSettings;
@@ -90,7 +104,6 @@ import org.f1x.io.LoggingOutputChannel;
 import org.f1x.io.OutputChannel;
 import org.f1x.log.MessageLog;
 import org.f1x.log.MessageLogFactory;
-import org.f1x.log.file.FileMessageLogFactory;
 import org.f1x.util.AsciiUtils;
 import org.f1x.util.ByteArrayReference;
 import org.f1x.util.RealTimeSource;
@@ -111,9 +124,7 @@ public abstract class FixCommunicator implements FixSession {
     private SessionEventListener eventListener;
 
     private final FixSettings settings;
-    private final boolean logInboundMessages;
-    private final boolean logOutboundMessages;
-    private final MessageLogFactory messageLogFactory;
+    private MessageLogFactory messageLogFactory;
     private MessageLog messageLog;
 
 
@@ -143,12 +154,12 @@ public abstract class FixCommunicator implements FixSession {
     protected FixCommunicator (FixVersion fixVersion, FixSettings settings, TimeSource timeSource) {
         this.settings = settings;
 
-        this.logInboundMessages = settings.isLogInboundMessages();
-        this.logOutboundMessages = settings.isLogOutboundMessages();
-        if (logInboundMessages || logOutboundMessages)
-            messageLogFactory = new FileMessageLogFactory(settings.getLogDirectory());
-        else
-            messageLogFactory = null;
+//        this.logInboundMessages = settings.isLogInboundMessages();
+//        this.logOutboundMessages = settings.isLogOutboundMessages();
+//        if (logInboundMessages || logOutboundMessages)
+//            messageLogFactory = new FileMessageLogFactory(settings.getLogDirectory());
+//        else
+//            messageLogFactory = null;
 
         this.beginString = AsciiUtils.getBytes(fixVersion.getBeginString());
 
@@ -180,6 +191,10 @@ public abstract class FixCommunicator implements FixSession {
         return state;
     }
 
+    public void setMessageLogFactory(MessageLogFactory messageLogFactory) {
+        this.messageLogFactory = messageLogFactory;
+    }
+
     protected void setSessionState(SessionState state) {
         final SessionState oldState = this.state;
         if (oldState == state) {
@@ -208,7 +223,7 @@ public abstract class FixCommunicator implements FixSession {
         this.messageLog = (messageLogFactory != null) ? messageLogFactory.create(getSessionID()) : null;
 
         this.in = in;
-        this.out = (logOutboundMessages) ? new LoggingOutputChannel(messageLog, out) : out;
+        this.out = (messageLog != null) ? new LoggingOutputChannel(messageLog, out) : out;
         //TODO:this.seqNum.read(sessionID);
     }
 
@@ -276,7 +291,7 @@ public abstract class FixCommunicator implements FixSession {
             if ( ! parser.next())
                 throw InvalidFixMessageException.MISSING_MSG_TYPE;
 
-            if (logInboundMessages)
+            if (messageLog != null)
                 messageLog.log(true, inboundMessageBuffer, offset, messageLength + msgTypeStarts-offset);
 
 

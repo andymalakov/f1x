@@ -81,103 +81,74 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.f1x.log.file;
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.f1x.log.file.nio;
 
 import org.f1x.api.session.SessionID;
-import org.f1x.log.LogFormatter;
-import org.f1x.log.OutputStreamMessageLog;
-import org.f1x.util.TimeSource;
+import org.f1x.log.MessageLog;
+import org.f1x.log.file.AbstractFileMessageLogFactory;
+import org.f1x.log.file.FileNameGenerator;
+import org.f1x.log.file.SimpleFileNameGenerator;
 
-import java.io.OutputStream;
+import java.io.File;
 
 /**
- * Extension of FileMessageLog that has a thread that periodically flushes the buffer
- *
+ * Factory for {@link MemMappedMessageLogger}.
  */
-public class PeriodicFlushingMessageLog extends OutputStreamMessageLog {
+public class MemMappedMessageLoggerFactory extends AbstractFileMessageLogFactory {
 
-    private final Flusher flusher;
+    public static final int DEFAULT_LOG_FILE_SIZE = 4*1024*1024;
 
-    /**
-     * @param os destination stream
-     * @param sessionID identifies session for this log
-     * @param timeSource time source used for formatting timestamps
-     * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
-     */
-    public PeriodicFlushingMessageLog(OutputStream os, SessionID sessionID, TimeSource timeSource, int flushPeriod) {
-        super(os, timeSource);
-        flusher = createFlusher(sessionID, timeSource, flushPeriod);
-    }
+    /** This setting defines size of log file */
+    private int maxSize;
+    private FileNameGenerator fileNameGenerator;
 
     /**
-     * @param os destination stream
-     * @param sessionID identifies session for this log
-     * @param timeSource time source used for formatting timestamps
-     * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
+     * Constricts factory using default file size and file name generator
+     * @param logDir directory where log files will reside
      */
-    public PeriodicFlushingMessageLog(OutputStream os, SessionID sessionID, LogFormatter formatter, TimeSource timeSource, int flushPeriod) {
-        super(os, formatter);
-        flusher = createFlusher(sessionID, timeSource, flushPeriod);
+    public MemMappedMessageLoggerFactory (File logDir) {
+        this(logDir, DEFAULT_LOG_FILE_SIZE, new SimpleFileNameGenerator()); // 4Mb
     }
 
-
-    protected Flusher createFlusher(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
-        return new Flusher(sessionID, timeSource, flushPeriod);
+    /**
+     * @param logDir directory where log files will reside
+     * @param maxSize This setting defines maximum size of log file. Specifying large value will cause page faults.
+     */
+    public MemMappedMessageLoggerFactory (File logDir, int maxSize, FileNameGenerator fileNameGenerator) {
+        super(logDir);
+        this.maxSize = maxSize;
+        this.fileNameGenerator = fileNameGenerator;
     }
-
-    public void start() {
-        flusher.start();
-    }
-
 
     @Override
-    public void close() {
-        super.close();
-
-        if (flusher.isAlive())
-            flusher.interrupt();
+    public MessageLog create(SessionID sessionID) {
+        File logFile = new File(logDir, fileNameGenerator.getLogFile(sessionID));
+        return new MemMappedMessageLogger(logFile, maxSize);
     }
 
+    public int getMaxSize() {
+        return maxSize;
+    }
 
-    protected class Flusher extends Thread {   //TODO: Replace by alloc-free version of ScheduledExecutorService ?
-        private final TimeSource timeSource;
-        private final int flushPeriod;
-
-        protected Flusher(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
-            super("Log flusher for " + sessionID);
-            setDaemon(true);
-            setPriority(Thread.NORM_PRIORITY - 1);
-            this.timeSource = timeSource;
-            this.flushPeriod = flushPeriod;
-        }
-
-        @Override
-        public void run () {
-            while (true) {
-                try {
-                    synchronized (lock) {
-                        if (os == null)
-                            break;
-
-                        os.flush();
-                    }
-
-                    onFlushComplete();
-
-                    timeSource.sleep(flushPeriod);
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Exception e) {
-                    LOGGER.error().append("Error writing FIX log").append(e).commit();
-                }
-            }
-
-        }
-
-        /** Called by flusher thread after each flush. Subclasses may perform additional actions (like switch to a different stream) */
-        protected void onFlushComplete() {
-            // by default does nothing
-        }
+    /**
+     * @param maxSize This setting defines maximum size of log file.  Specifying large value will cause page faults.
+     */
+    public void setMaxSize(int maxSize) {
+        this.maxSize = maxSize;
     }
 
 }
