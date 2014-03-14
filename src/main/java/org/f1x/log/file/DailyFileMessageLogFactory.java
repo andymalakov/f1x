@@ -95,6 +95,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.log.file;
 
 import org.f1x.api.session.SessionID;
@@ -116,7 +130,7 @@ public class DailyFileMessageLogFactory extends AbstractFileMessageLogFactory {
     public static final int DEFAULT_FILE_BUFFER_SIZE = 8192;
     public static final int DEFAULT_FLUSH_PERIOD = 15000;
 
-    private final OutputStreamFactory streamFactory;
+    private OutputStreamFactory streamFactory;
 
     private TimeZone tz = TimeZone.getDefault();
     private int flushPeriod = DEFAULT_FLUSH_PERIOD;
@@ -127,23 +141,24 @@ public class DailyFileMessageLogFactory extends AbstractFileMessageLogFactory {
      * @param logDir directory where log files will reside
      */
     public DailyFileMessageLogFactory (File logDir) {
-        this(logDir, DEFAULT_FILE_BUFFER_SIZE);
+        this(logDir, new BufferedOutputStreamFactory(DEFAULT_FILE_BUFFER_SIZE, true));
     }
 
     /**
      * @param logDir directory where log files will reside
-     * @param fileBufferSize Defines buffer size.
      */
-    public DailyFileMessageLogFactory (File logDir, int fileBufferSize) {
+    public DailyFileMessageLogFactory (File logDir, OutputStreamFactory streamFactory) {
         super(logDir);
-        this.streamFactory = new BufferedOutputStreamFactory(fileBufferSize, true);
+        this.streamFactory = streamFactory;
     }
 
     @Override
     public MessageLog create(SessionID sessionID) {
         if (logFormatter == null)
             logFormatter = new SimpleLogFormatter(timeSource);
-        return new DailyFileMessageLog(sessionID, logDir, streamFactory, logFormatter, timeSource, tz, flushPeriod);
+        DailyFileMessageLog result = new DailyFileMessageLog(sessionID, logDir, streamFactory, logFormatter, timeSource, tz);
+        result.start(sessionID, timeSource, flushPeriod);
+        return result;
     }
 
     /** This logger begins new file each midnight in given time zone */
@@ -184,5 +199,13 @@ public class DailyFileMessageLogFactory extends AbstractFileMessageLogFactory {
     /** Used to format each log record in a file, can be null */
     public void setLogFormatter(LogFormatter logFormatter) {
         this.logFormatter = logFormatter;
+    }
+
+    public OutputStreamFactory getStreamFactory() {
+        return streamFactory;
+    }
+
+    public void setStreamFactory(OutputStreamFactory streamFactory) {
+        this.streamFactory = streamFactory;
     }
 }

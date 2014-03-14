@@ -25,6 +25,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.f1x.log.file;
 
 import org.f1x.api.session.SessionID;
@@ -34,7 +35,10 @@ import org.f1x.util.TimeSource;
 import java.io.*;
 
 /**
- * Start a new log file when size of current fle exceeds given maximum.
+ * Start a new log file when size of current file exceeds given maximum.
+ *
+ * NOTE: to minimize file switching effect on logging clients, this implementation switches to the next file asynchronously.
+ * More specifically it happens during asynchronous flush. As result it is possible that length of each file will exceed given maximum.
  */
 public class RollingFileMessageLog extends PeriodicFlushingMessageLog {
 
@@ -45,13 +49,11 @@ public class RollingFileMessageLog extends PeriodicFlushingMessageLog {
     private final File [] logFiles;
 
     /**
-     * @param sessionID identifies session for this log
      * @param timeSource time source used for formatting timestamps
      * @param bytesPerFile Logger will roll to the next file once current log file size exceeds this limit (in bytes).
-     * @param flushPeriod  This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
      */
-    public RollingFileMessageLog(File [] logFiles, OutputStreamFactory streamFactory, SessionID sessionID, TimeSource timeSource, long bytesPerFile, int flushPeriod) {
-        super(streamFactory.create(logFiles[0]), sessionID, timeSource, flushPeriod);
+    public RollingFileMessageLog(File [] logFiles, OutputStreamFactory streamFactory, TimeSource timeSource, long bytesPerFile) {
+        super(streamFactory.create(logFiles[0]), timeSource);
 
         this.logFiles = logFiles;
         this.streamFactory = streamFactory;
@@ -59,13 +61,10 @@ public class RollingFileMessageLog extends PeriodicFlushingMessageLog {
     }
 
     /**
-     * @param sessionID identifies session for this log
-     * @param timeSource time source used for formatting timestamps
      * @param bytesPerFile Logger will roll to the next file once current log file size exceeds this limit (in bytes).
-     * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
      */
-    public RollingFileMessageLog(File [] logFiles, OutputStreamFactory streamFactory, SessionID sessionID, LogFormatter formatter, TimeSource timeSource, long bytesPerFile, int flushPeriod) {
-        super(streamFactory.create(logFiles[0]), sessionID, formatter, timeSource, flushPeriod);
+    public RollingFileMessageLog(File [] logFiles, OutputStreamFactory streamFactory, LogFormatter formatter, long bytesPerFile) {
+        super(streamFactory.create(logFiles[0]), formatter);
         this.logFiles = logFiles;
         this.streamFactory = streamFactory;
         this.bytesPerFile = bytesPerFile;
@@ -87,17 +86,26 @@ public class RollingFileMessageLog extends PeriodicFlushingMessageLog {
         }
     }
 
-    protected Flusher createFlusher(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
-        return new RollingFlusher(sessionID, timeSource, flushPeriod);
+    /**
+     * @param sessionID identifies session for this log
+     * @param timeSource time source used for formatting timestamps
+     * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
+     */
+    @Override
+    public void start(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
+        if (flushPeriod > 0) {
+            flusher = new RollingFlusher(sessionID, timeSource, flushPeriod);
+            flusher.start();
+        }
     }
-
 
     private class RollingFlusher extends Flusher {
         private int fileIndex = 0;
-        private long bytesBeforeNextFile = bytesPerFile;
+        private long bytesBeforeNextFile;
 
         protected RollingFlusher(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
             super(sessionID, timeSource, flushPeriod);
+            bytesBeforeNextFile = RollingFileMessageLog.this.bytesPerFile;
         }
 
         @Override
@@ -108,6 +116,7 @@ public class RollingFileMessageLog extends PeriodicFlushingMessageLog {
                 synchronized (lock) {
                     os = next;
                 }
+
                 safeClose(prev);
                 bytesBeforeNextFile += bytesPerFile;
             }

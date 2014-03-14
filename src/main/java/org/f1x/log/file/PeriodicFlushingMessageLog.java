@@ -81,6 +81,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.log.file;
 
 import org.f1x.api.session.SessionID;
@@ -96,37 +110,33 @@ import java.io.OutputStream;
  */
 public class PeriodicFlushingMessageLog extends OutputStreamMessageLog {
 
-    private final Flusher flusher;
+    protected Flusher flusher;
 
     /**
      * @param os destination stream
-     * @param sessionID identifies session for this log
      * @param timeSource time source used for formatting timestamps
-     * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
      */
-    public PeriodicFlushingMessageLog(OutputStream os, SessionID sessionID, TimeSource timeSource, int flushPeriod) {
+    public PeriodicFlushingMessageLog(OutputStream os, TimeSource timeSource) {
         super(os, timeSource);
-        flusher = createFlusher(sessionID, timeSource, flushPeriod);
     }
 
     /**
      * @param os destination stream
+     */
+    public PeriodicFlushingMessageLog(OutputStream os, LogFormatter formatter) {
+        super(os, formatter);
+    }
+
+    /**
      * @param sessionID identifies session for this log
      * @param timeSource time source used for formatting timestamps
      * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
      */
-    public PeriodicFlushingMessageLog(OutputStream os, SessionID sessionID, LogFormatter formatter, TimeSource timeSource, int flushPeriod) {
-        super(os, formatter);
-        flusher = createFlusher(sessionID, timeSource, flushPeriod);
-    }
-
-
-    protected Flusher createFlusher(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
-        return new Flusher(sessionID, timeSource, flushPeriod);
-    }
-
-    public void start() {
-        flusher.start();
+    public void start(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
+        if (flushPeriod > 0) {
+            flusher = new Flusher(sessionID, timeSource, flushPeriod);
+            flusher.start();
+        }
     }
 
 
@@ -134,14 +144,14 @@ public class PeriodicFlushingMessageLog extends OutputStreamMessageLog {
     public void close() {
         super.close();
 
-        if (flusher.isAlive())
+        if (flusher != null && flusher.isAlive())
             flusher.interrupt();
     }
 
 
     protected class Flusher extends Thread {   //TODO: Replace by alloc-free version of ScheduledExecutorService ?
         private final TimeSource timeSource;
-        private final int flushPeriod;
+        protected final int flushPeriod;
 
         protected Flusher(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
             super("Log flusher for " + sessionID);
@@ -155,6 +165,8 @@ public class PeriodicFlushingMessageLog extends OutputStreamMessageLog {
         public void run () {
             while (true) {
                 try {
+                    timeSource.sleep(flushPeriod);
+
                     synchronized (lock) {
                         if (os == null)
                             break;
@@ -164,7 +176,6 @@ public class PeriodicFlushingMessageLog extends OutputStreamMessageLog {
 
                     onFlushComplete();
 
-                    timeSource.sleep(flushPeriod);
                 } catch (InterruptedException e) {
                     break;
                 } catch (Exception e) {

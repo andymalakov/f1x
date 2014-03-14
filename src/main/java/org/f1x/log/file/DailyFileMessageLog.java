@@ -53,13 +53,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.log.file;
 
 import org.f1x.api.session.SessionID;
 import org.f1x.log.LogFormatter;
 import org.f1x.util.TimeSource;
 
-import java.io.*;
+import java.io.File;
+import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.TimeZone;
 
@@ -68,19 +83,19 @@ public class DailyFileMessageLog extends PeriodicFlushingMessageLog {
 
 
     /**
-     * @param sessionID
      * @param logDir directory where log files will reside
-     * @param formatter
-     * @param timeSource
-     * @param tz
-     * @param flushPeriod This setting determines how often logger flushes the buffer (in milliseconds). Negative or zero value disables periodic flushing.
      */
-    public DailyFileMessageLog(SessionID sessionID, File logDir, OutputStreamFactory streamFactory, LogFormatter formatter, TimeSource timeSource, TimeZone tz, int flushPeriod) {
-        super(null, sessionID, formatter, timeSource, flushPeriod);
+    public DailyFileMessageLog(SessionID sessionID, File logDir, OutputStreamFactory streamFactory, LogFormatter formatter, TimeSource timeSource, TimeZone tz) {
+        super(null, formatter);
 
         this.dailyFileRoller = new OutputStreamRollover(logDir, streamFactory, sessionID, timeSource, tz);
         this.os = dailyFileRoller.createCurrentStream();
 
+    }
+
+    @Override
+    public void start(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
+        super.start(sessionID, timeSource, flushPeriod);
         this.dailyFileRoller.start();
     }
 
