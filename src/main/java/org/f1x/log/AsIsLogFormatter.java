@@ -12,18 +12,16 @@
  * limitations under the License.
  */
 
-package org.f1x.util.log;
+package org.f1x.log;
 
-/** Garbage free logger  */
-public interface Log {
-    //TODO: (Use byte[] formatters)
-    Log timestamp ();
-    Log append (CharSequence text);
-    Log append (int value);
-    Log append (long value);
-    Log append (double value);
-    Log append (boolean value);
-    Log appendUTCTimestamp (long timestamp);
-    Log append (Object value);
-    void flush();
+import java.io.IOException;
+import java.io.OutputStream;
+
+/** Stores FIX message as-is, without any formatting */
+public final class AsIsLogFormatter implements LogFormatter {
+    @Override
+    public int log(boolean isInbound, byte[] buffer, int offset, int length, OutputStream os) throws IOException {
+        os.write(buffer, offset, length);
+        return length;
+    }
 }

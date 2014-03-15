@@ -40,13 +40,41 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.log.file;
 
 import org.f1x.api.session.SessionID;
 import org.f1x.log.LogFormatter;
 import org.f1x.util.TimeSource;
 
-import java.io.*;
+import java.io.File;
+import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.TimeZone;
 
@@ -54,21 +82,20 @@ public class DailyFileMessageLog extends PeriodicFlushingMessageLog {
     private final OutputStreamRollover dailyFileRoller;
 
 
-    public DailyFileMessageLog(SessionID sessionID, File logDir, TimeSource timeSource, TimeZone tz, int bufferSize, int flushPeriod) {
-        super(null, sessionID, timeSource, flushPeriod);
+    /**
+     * @param logDir directory where log files will reside
+     */
+    public DailyFileMessageLog(SessionID sessionID, File logDir, OutputStreamFactory streamFactory, LogFormatter formatter, TimeSource timeSource, TimeZone tz) {
+        super(null, formatter);
 
-        this.dailyFileRoller = new OutputStreamRollover(logDir, sessionID, timeSource, tz, bufferSize);
+        this.dailyFileRoller = new OutputStreamRollover(logDir, streamFactory, sessionID, timeSource, tz);
         this.os = dailyFileRoller.createCurrentStream();
 
-        this.dailyFileRoller.start();
     }
 
-    public DailyFileMessageLog(SessionID sessionID, File logDir, LogFormatter formatter, TimeSource timeSource, TimeZone tz, int bufferSize, int flushPeriod) {
-        super(null, sessionID, formatter, timeSource, flushPeriod);
-
-        this.dailyFileRoller = new OutputStreamRollover(logDir, sessionID, timeSource, tz, bufferSize);
-        this.os = dailyFileRoller.createCurrentStream();
-
+    @Override
+    public void start(SessionID sessionID, TimeSource timeSource, int flushPeriod) {
+        super.start(sessionID, timeSource, flushPeriod);
         this.dailyFileRoller.start();
     }
 
@@ -84,15 +111,15 @@ public class DailyFileMessageLog extends PeriodicFlushingMessageLog {
         private final SessionID sessionID;
         private final TimeSource timeSource;
         private final File logDir;
-        private final int bufferSize;
+        private final OutputStreamFactory streamFactory;
 
 
-        OutputStreamRollover(File logDir, SessionID sessionID, TimeSource timeSource, TimeZone tz, int bufferSize) {
+        OutputStreamRollover(File logDir, OutputStreamFactory streamFactory, SessionID sessionID, TimeSource timeSource, TimeZone tz) {
             super("Daily roll for " + sessionID);
             setDaemon(true);
             setPriority(Thread.NORM_PRIORITY - 1);
+            this.streamFactory = streamFactory;
             this.logDir = logDir;
-            this.bufferSize = bufferSize;
             this.sessionID = sessionID;
             this.timeSource = timeSource;
             this.calendar = getCurrentDayStart(timeSource, tz);
@@ -144,15 +171,8 @@ public class DailyFileMessageLog extends PeriodicFlushingMessageLog {
 
         private OutputStream createCurrentStream() {
             generateCurrentFileName();
-            try {
-                File file = new File (logDir, nextFileName.toString());
-                OutputStream os = new FileOutputStream(file, true); // append
-                if (bufferSize > 0)
-                    os = new BufferedOutputStream(os, bufferSize);
-                return os;
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException("Can't create a log file", e);
-            }
+            File file = new File (logDir, nextFileName.toString());
+            return streamFactory.create(file);
         }
     }
 
