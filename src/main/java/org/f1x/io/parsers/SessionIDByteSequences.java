@@ -82,4 +82,18 @@ public class SessionIDByteSequences implements SessionID {
     public void setTargetSubId(byte [] buffer, int offset, int length) {
         targetSubId.set(buffer, offset, length);
     }
+
+    @Override
+    public SessionID copy() {
+        // TODO: implement
+        return null;
+    }
+
+    public void clear(){
+        senderCompId.clear();
+        senderSubId.clear();
+        targetCompId.clear();
+        targetSubId.clear();
+    }
+
 }

@@ -38,5 +38,15 @@ public interface SessionID {
     public CharSequence getTargetSubId();
 
     @Override
-    public boolean equals (Object object);
+    boolean equals(Object object);
+
+    @Override
+    int hashCode();
+
+    /**
+     * Returns deep copy of instance.
+     * Must return copy of same class.
+     * @return deep copy of current instance
+     */
+    SessionID copy();
 }

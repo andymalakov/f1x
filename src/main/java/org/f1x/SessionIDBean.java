@@ -88,6 +88,11 @@ public class SessionIDBean implements SessionID {
     }
 
     @Override
+    public SessionIDBean copy() {
+        return new SessionIDBean(getSenderCompId(), getSenderSubId(), getTargetCompId(), getTargetSubId());
+    }
+
+    @Override
     public String toString() {
         return senderCompId + '-' + targetCompId;
     }
