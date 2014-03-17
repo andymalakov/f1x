@@ -32,6 +32,9 @@ public class SessionManagerImpl implements SessionManager {
      * @param logoutTimeout time in milliseconds
      */
     public SessionManagerImpl(int maxNumOfManagedSessions, int logoutTimeout, final ObjectFactory<? extends FixSessionAcceptor> factory) {
+        if(maxNumOfManagedSessions < 1)
+            throw new IllegalArgumentException("maxNumOfManagedSessions < 1");
+
         this.acceptorPool = new ObjectPool<>(maxNumOfManagedSessions, new ObjectFactory<AcceptorWrapper>() {
             @Override
             public AcceptorWrapper create() {

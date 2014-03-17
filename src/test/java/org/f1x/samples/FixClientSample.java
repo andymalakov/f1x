@@ -35,7 +35,7 @@ import org.f1x.api.message.fields.*;
 import org.f1x.api.session.FixSession;
 import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.v1.FixSessionInitiator;
 
 import java.io.IOException;
@@ -53,8 +53,8 @@ public class FixClientSample {
         final FixSession session = new FixSessionInitiator("localhost", 9999, FixVersion.FIX44, new SessionIDBean("SENDER-COMP-ID", "TARGET-COMP-ID"));
         session.setEventListener(new SessionEventListener() {
             @Override
-            public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
-                if (newState == SessionState.ApplicationConnected)
+            public void onStatusChanged(SessionID sessionID, SessionStatus oldStatus, SessionStatus newStatus) {
+                if (newStatus == SessionStatus.ApplicationConnected)
                     sendSampleMessage(session);
             }
         });
@@ -70,8 +70,8 @@ public class FixClientSample {
         };
         session.setEventListener(new SessionEventListener() {
             @Override
-            public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
-                if (newState == SessionState.ApplicationConnected)
+            public void onStatusChanged(SessionID sessionID, SessionStatus oldStatus, SessionStatus newStatus) {
+                if (newStatus == SessionStatus.ApplicationConnected)
                     sendSampleMessage(session);
             }
         });
@@ -79,7 +79,7 @@ public class FixClientSample {
     }
 
     private static void sendSampleMessage(FixSession client) {
-        assert client.getSessionState() == SessionState.ApplicationConnected;
+        assert client.getSessionStatus() == SessionStatus.ApplicationConnected;
         MessageBuilder mb = client.createMessageBuilder(); // can be reused
         try {
             mb.clear();

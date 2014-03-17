@@ -59,10 +59,9 @@ import junit.framework.Assert;
 import org.f1x.SessionIDBean;
 import org.f1x.api.FixSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.fields.SessionRejectReason;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.io.InputChannel;
 import org.f1x.io.OutputChannel;
 import org.f1x.io.socket.ConnectionInterceptor;
@@ -137,7 +136,7 @@ public class Test_FixCommunicator {
 
             connect(new EmptyInputChannel(), out);
 
-            setSessionState(SessionState.ApplicationConnected);
+            setSessionStatus(SessionStatus.ApplicationConnected);
         }
 
         @Override

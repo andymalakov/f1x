@@ -61,7 +61,7 @@ import com.google.monitoring.runtime.instrumentation.Sampler;
 import org.f1x.SessionIDBean;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionEventListener;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.io.socket.DefaultBindInterceptor;
 import org.f1x.io.socket.DefaultConnectionInterceptor;
 import org.f1x.tools.SimpleFixAcceptor;
@@ -116,8 +116,8 @@ public class NoAllocationsTest {
         final SessionEventListener eventListener = new SessionEventListener() {
 
             @Override
-            public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
-                if (newState == SessionState.ApplicationConnected)
+            public void onStatusChanged(SessionID sessionID, SessionStatus oldStatus, SessionStatus newStatus) {
+                if (newStatus == SessionStatus.ApplicationConnected)
                     connected.countDown();
             }
         };

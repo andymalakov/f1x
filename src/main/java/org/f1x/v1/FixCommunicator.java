@@ -88,6 +88,7 @@ import org.f1x.api.FixSettings;
 import org.f1x.api.message.fields.SessionRejectReason;
 import org.f1x.api.session.FixSession;
 import org.f1x.api.message.fields.EncryptMethod;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.util.TimeSource;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
@@ -98,7 +99,6 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.message.fields.MsgType;
 import org.f1x.api.session.SessionEventListener;
-import org.f1x.api.session.SessionState;
 import org.f1x.io.InputChannel;
 import org.f1x.io.LoggingOutputChannel;
 import org.f1x.io.OutputChannel;
@@ -133,7 +133,7 @@ public abstract class FixCommunicator implements FixSession {
     private OutputChannel out;
 
 
-    private SessionState state = SessionState.Disconnected;
+    private SessionStatus status = SessionStatus.Disconnected;
     protected volatile boolean active = true; // close() sets this to false
     private final SequenceNumbers seqNum = new SequenceNumbers(); // hidden for thread-safety reasons
 
@@ -187,35 +187,35 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     @Override
-    public SessionState getSessionState() {
-        return state;
+    public SessionStatus getSessionStatus() {
+        return status;
     }
 
     public void setMessageLogFactory(MessageLogFactory messageLogFactory) {
         this.messageLogFactory = messageLogFactory;
     }
 
-    protected void setSessionState(SessionState state) {
-        final SessionState oldState = this.state;
-        if (oldState == state) {
-            LOGGER.warn().append("Already in the state ").append(state).commit();
+    protected void setSessionStatus(SessionStatus status) {
+        final SessionStatus oldStatus = this.status;
+        if (oldStatus == status) {
+            LOGGER.warn().append("Already in the status ").append(status).commit();
         } else {
-            this.state = state;
-            onSessionStateChanged(oldState, state);
+            this.status = status;
+            onSessionStatusChanged(oldStatus, status);
         }
     }
 
-    protected void onSessionStateChanged(final SessionState oldState, final SessionState newState) {
+    protected void onSessionStatusChanged(final SessionStatus oldStatus, final SessionStatus newStatus) {
         SessionID sessionID = getSessionID();
-        LOGGER.info().append("Session ").append(sessionID).append(" changed state ").append(oldState).append(" => ").append(newState).commit();
+        LOGGER.info().append("Session ").append(sessionID).append(" changed status ").append(oldStatus).append(" => ").append(newStatus).commit();
         if (eventListener != null)
-            eventListener.onStateChanged(sessionID, oldState, newState);
+            eventListener.onStatusChanged(sessionID, oldStatus, newStatus);
     }
 
-    protected final void assertSessionState(SessionState expectedState) {
-        final SessionState actualState = getSessionState();
-        if (actualState != expectedState)
-            throw new IllegalStateException("Expecting " + expectedState + " state instead of " + actualState);
+    protected final void assertSessionStatus(SessionStatus expectedStatus) {
+        final SessionStatus actualStatus = getSessionStatus();
+        if (actualStatus != expectedStatus)
+            throw new IllegalStateException("Expecting " + expectedStatus + " status instead of " + actualStatus);
     }
 
 
@@ -251,7 +251,7 @@ public abstract class FixCommunicator implements FixSession {
             errorProcessingMessage("General error", e, true);
         }
 
-        assertSessionState(SessionState.Disconnected);
+        assertSessionStatus(SessionStatus.Disconnected);
     }
 
     private void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
@@ -313,7 +313,7 @@ public abstract class FixCommunicator implements FixSession {
     public void logout(String cause) {
         LOGGER.info().append("Initiating FIX Logout: ").append(cause).commit();
 
-        if (state == SessionState.ApplicationConnected) {
+        if (status == SessionStatus.ApplicationConnected) {
             try {
                 sendLogout(cause);
             } catch (IOException e) {
@@ -327,7 +327,7 @@ public abstract class FixCommunicator implements FixSession {
     public void disconnect(String cause) {
         LOGGER.info().append("FIX Disconnect due to ").append(cause).commit();
 
-        setSessionState(SessionState.Disconnected);
+        setSessionStatus(SessionStatus.Disconnected);
         try {
             in.close();
             out.close();
@@ -346,7 +346,7 @@ public abstract class FixCommunicator implements FixSession {
     @Override
     public void close() {
         active = false;
-        if (state == SessionState.ApplicationConnected) {
+        if (status == SessionStatus.ApplicationConnected) {
             try {
                 sendLogout("Goodbye");
             } catch (IOException e) {
@@ -354,7 +354,7 @@ public abstract class FixCommunicator implements FixSession {
             }
         }
 
-        if (state != SessionState.Disconnected)
+        if (status != SessionStatus.Disconnected)
             disconnect("Closing");
     }
 
@@ -393,7 +393,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void sendLogout(CharSequence cause) throws IOException {
-        assertSessionState(SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.LOGOUT);
@@ -401,7 +401,7 @@ public abstract class FixCommunicator implements FixSession {
                 sessionMessageBuilder.add(FixTags.Text, cause);
             send(sessionMessageBuilder);
         }
-        setSessionState(SessionState.InitiatedLogout);
+        setSessionStatus(SessionStatus.InitiatedLogout);
     }
 
     /**
@@ -409,7 +409,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param testReqId required when heartbeat is sent in response to TestRequest(1)
      */
     protected void sendHeartbeat(CharSequence testReqId) throws IOException {
-        assertSessionState (SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.HEARTBEAT);
@@ -426,7 +426,7 @@ public abstract class FixCommunicator implements FixSession {
      *                  Any string can be used as the TestReqID (112) (one suggestion is to use a timestamp string).
      */
     protected void sendTestRequest(CharSequence testReqId) throws IOException {
-        assertSessionState (SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.TEST_REQUEST);
@@ -442,7 +442,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param text optional explanation message
      */
     protected void sendReject(int rejectedMsgSeqNum, SessionRejectReason rejectReason, CharSequence text) throws IOException {
-        assertSessionState(SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.REJECT);
@@ -463,7 +463,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param endSeqNo end of range to resend (inclusive). Zero means infinity (resend up to the latest).
      */
     protected void sendResendReq(int beginSeqNo, int endSeqNo) throws IOException {
-        assertSessionState (SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.RESEND_REQUEST);
@@ -482,7 +482,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param endSeqNo end of range (pass 0 to resend up to the latest)
      */
     protected void sendGapFill(int beginSeqNo, int endSeqNo) throws IOException {
-        assertSessionState (SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.SEQUENCE_RESET);
@@ -506,7 +506,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param newSeqNo new sequence number
      */
     protected void sendSequenceReset(int newSeqNo) throws IOException {
-        assertSessionState (SessionState.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected);
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.SEQUENCE_RESET);
@@ -544,7 +544,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void processInboundMessage(MessageParser parser, CharSequence msgType) throws IOException, InvalidFixMessageException {
-        switch (getSessionState()) {
+        switch (getSessionStatus()) {
             case ApplicationConnected:
             case InitiatedLogout:
                 processInSessionMessage(parser, msgType);
@@ -558,7 +558,7 @@ public abstract class FixCommunicator implements FixSession {
                 }
                 break;
             default:
-                LOGGER.warn().append("Received unexpected message (35=").append(msgType).append(") in state ").append(getSessionState()).commit();
+                LOGGER.warn().append("Received unexpected message (35=").append(msgType).append(") in status ").append(getSessionStatus()).commit();
                 //TODO: sendReject();
         }
 
@@ -598,7 +598,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     /**
-     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
+     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
      */
     protected void processInboundLogon(MessageParser parser) throws IOException {
         int heartbeatInterval = -1; //TODO: Acceptor ensures interval and sends it back with its LOGON
@@ -623,7 +623,7 @@ public abstract class FixCommunicator implements FixSession {
 
 //TODO: Actually responder may mimic inbound logon here, need smarter logic
 //        if (isSequenceNumberReset) { // inbound on any side may request sequence reset
-//            if (getSessionState() != SessionState.InitiatedLogon && ! settings.isResetSequenceNumbersOnEachLogon())
+//            if (getSessionStatus() != SessionStatus.InitiatedLogon && ! settings.isResetSequenceNumbersOnEachLogon())
 //                seqNum.reset();
 //        }
 
@@ -642,7 +642,7 @@ public abstract class FixCommunicator implements FixSession {
         processInboundLogon(isSequenceNumberReset);
     }
 
-    /** Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
+    /** Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
      * @param isSequenceNumberReset true if inbound LOGON message contains tag ResetSeqNum(141)=Y.
      */
     protected abstract void processInboundLogon(boolean isSequenceNumberReset) throws IOException;
@@ -659,10 +659,10 @@ public abstract class FixCommunicator implements FixSession {
             }
         }
 
-        if (state == SessionState.ApplicationConnected) {
+        if (status == SessionStatus.ApplicationConnected) {
             sendLogout("Responding to LOGOUT request");
-            setSessionState(SessionState.SocketConnected);
-        } else if (state == SessionState.InitiatedLogout) {
+            setSessionStatus(SessionStatus.SocketConnected);
+        } else if (status == SessionStatus.InitiatedLogout) {
             disconnect("Logout received");
         } else {
             LOGGER.info().append("Unexpected LOGOUT").commit();

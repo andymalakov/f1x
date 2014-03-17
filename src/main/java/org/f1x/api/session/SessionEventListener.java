@@ -30,6 +30,6 @@ package org.f1x.api.session;
 
 public interface SessionEventListener {
 
-    void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState);
+    void onStatusChanged(SessionID sessionID, SessionStatus oldStatus, SessionStatus newStatus);
 
 }

@@ -45,8 +45,7 @@ package org.f1x.v1;
 import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionState;
-import org.f1x.v1.schedule.SessionSchedule;
+import org.f1x.api.session.SessionStatus;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -107,9 +106,9 @@ public class FixSessionInitiator extends FixSocketCommunicator {
             Thread.sleep(getSettings().getErrorRecoveryInterval());
         }
 
-        assertSessionState (SessionState.Disconnected);
+        assertSessionStatus(SessionStatus.Disconnected);
 
-        while (active && getSessionState() == SessionState.Disconnected) {
+        while (active && getSessionStatus() == SessionStatus.Disconnected) {
             try {
                 LOGGER.info().append("Connecting...").commit();
                 connect(new Socket (host, port));
@@ -122,27 +121,27 @@ public class FixSessionInitiator extends FixSocketCommunicator {
                 Thread.sleep(getSettings().getConnectInterval());
             }
         }
-        assert getSessionState() == SessionState.SocketConnected;
+        assert getSessionStatus() == SessionStatus.SocketConnected;
     }
 
     /** Initiates a LOGON procedure */
     private void logon () {
         LOGGER.info().append("Initiating FIX Logon").commit();
         try {
-            assertSessionState (SessionState.SocketConnected);
+            assertSessionStatus(SessionStatus.SocketConnected);
             sendLogon(getSettings().isResetSequenceNumbers());
-            setSessionState(SessionState.InitiatedLogon);
+            setSessionStatus(SessionStatus.InitiatedLogon);
         } catch (Throwable e) {
             LOGGER.warn().append("Error sending LOGON request, dropping connection").append(e).commit();
             disconnect("LOGON error");
         }
     }
 
-    /** Handle inbound LOGON message depending on FIX session role (acceptor/initiator) and current state */
+    /** Handle inbound LOGON message depending on FIX session role (acceptor/initiator) and current status */
     @Override
     protected void processInboundLogon(boolean isSequenceNumberReset) throws IOException {
-        if (getSessionState() == SessionState.InitiatedLogon) {
-            setSessionState(SessionState.ApplicationConnected);
+        if (getSessionStatus() == SessionStatus.InitiatedLogon) {
+            setSessionStatus(SessionStatus.ApplicationConnected);
             LOGGER.info().append("FIX Session established").commit();
         } else {
             LOGGER.info().append("Unexpected LOGON (In-session sequence reset?)").commit();

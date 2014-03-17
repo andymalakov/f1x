@@ -44,10 +44,8 @@ package org.f1x.v1;
 
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.message.MessageParser;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
@@ -83,27 +81,27 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
     @Override
     public final void run() {
-        assertSessionState(SessionState.SocketConnected);
+        assertSessionStatus(SessionStatus.SocketConnected);
         try {
             processInboundMessages();
         } catch (Throwable e) {
             LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
         }
-        assertSessionState(SessionState.Disconnected);
+        assertSessionStatus(SessionStatus.Disconnected);
     }
 
     //TODO: What ensures that LOGON message is the first message we process?
 
     /**
-     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
+     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
      */
     @Override
     protected void processInboundLogon(boolean isSequenceNumberReset) throws IOException {
 
-        if (getSessionState() == SessionState.SocketConnected) {
-            setSessionState(SessionState.ReceivedLogon);
+        if (getSessionStatus() == SessionStatus.SocketConnected) {
+            setSessionStatus(SessionStatus.ReceivedLogon);
             sendLogon(isSequenceNumberReset);
-            setSessionState(SessionState.ApplicationConnected);
+            setSessionStatus(SessionStatus.ApplicationConnected);
         } else {
             LOGGER.info().append("Unexpected LOGON (In-session sequence reset?)");
         }

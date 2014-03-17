@@ -36,7 +36,7 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.api.FixInitiatorSettings;
 import org.f1x.v1.FixSessionInitiator;
 
@@ -54,7 +54,7 @@ public class SimpleFixInitiator extends FixSessionInitiator {
     }
 
     public void sendNewOrder (long orderId) throws IOException {
-        assert getSessionState() == SessionState.ApplicationConnected;
+        assert getSessionStatus() == SessionStatus.ApplicationConnected;
         synchronized (mb) {
             mb.clear();
             mb.setMessageType(MsgType.ORDER_SINGLE);
@@ -127,7 +127,7 @@ public class SimpleFixInitiator extends FixSessionInitiator {
 
         while(true) {
             Thread.sleep(100);
-            if (getSessionState() == SessionState.ApplicationConnected)
+            if (getSessionStatus() == SessionStatus.ApplicationConnected)
                 break;
         }
 

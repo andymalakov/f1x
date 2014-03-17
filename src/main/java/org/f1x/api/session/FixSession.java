@@ -39,7 +39,7 @@ public interface FixSession extends Runnable {
 
     SessionID getSessionID();
     FixSettings getSettings();
-    SessionState getSessionState();
+    SessionStatus getSessionStatus();
 
     MessageBuilder createMessageBuilder();
     void send (MessageBuilder mb) throws IOException;

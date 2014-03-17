@@ -37,7 +37,7 @@ import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.session.FixSession;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.tools.EchoServer;
 import org.f1x.v1.FixSessionInitiator;
 import org.junit.Assert;
@@ -87,15 +87,15 @@ public class Test_EchoServer extends  TestCommon {
         initiatorThread.start();
 
 
-        if ( ! spinWaitSessionState(client, SessionState.ApplicationConnected, 15000))
+        if ( ! spinWaitSessionStatus(client, SessionStatus.ApplicationConnected, 15000))
             Assert.fail("Timed out waiting for the first FIX session to establish");
 
         client.disconnect("*** Reconnect Test ***");
 
-        if ( ! spinWaitSessionState(client, SessionState.Disconnected, 15000))
+        if ( ! spinWaitSessionStatus(client, SessionStatus.Disconnected, 15000))
             Assert.fail("Timed out waiting for the FIX session to go down");
 
-        if ( ! spinWaitSessionState(client, SessionState.ApplicationConnected, 35000))
+        if ( ! spinWaitSessionStatus(client, SessionStatus.ApplicationConnected, 35000))
             Assert.fail("Timed out waiting for the FIX session to re-establish");
 
         client.disconnect("End of test");
@@ -103,10 +103,10 @@ public class Test_EchoServer extends  TestCommon {
         server.close();
     }
 
-    private boolean spinWaitSessionState(FixSession session, SessionState expectedState, long timeout) throws InterruptedException {
+    private boolean spinWaitSessionStatus(FixSession session, SessionStatus expectedStatus, long timeout) throws InterruptedException {
         final long timeoutTime = System.currentTimeMillis() + timeout;
         while (true) {
-            if (session.getSessionState() == expectedState)
+            if (session.getSessionStatus() == expectedStatus)
                 return true;
 
             if (System.currentTimeMillis() > timeoutTime)
@@ -128,7 +128,7 @@ public class Test_EchoServer extends  TestCommon {
         }
 
         public void sendMessage () {
-            assert getSessionState() == SessionState.ApplicationConnected;
+            assert getSessionStatus() == SessionStatus.ApplicationConnected;
             try {
                 mb.clear();
                 mb.setMessageType(MsgType.ORDER_SINGLE);
@@ -151,10 +151,10 @@ public class Test_EchoServer extends  TestCommon {
         }
 
         @Override
-        protected void onSessionStateChanged(SessionState oldState, SessionState newState) {
-            super.onSessionStateChanged(oldState, newState);
+        protected void onSessionStatusChanged(SessionStatus oldStatus, SessionStatus newStatus) {
+            super.onSessionStatusChanged(oldStatus, newStatus);
             final int cnt = (int)messageCount.getCount();
-            if (newState == SessionState.ApplicationConnected)
+            if (newStatus == SessionStatus.ApplicationConnected)
                 for (int i=0; i < cnt; i++)
                     sendMessage();
         }

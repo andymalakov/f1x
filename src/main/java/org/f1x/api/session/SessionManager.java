@@ -18,14 +18,14 @@ public interface SessionManager {
     boolean accept(Socket socket);
 
     /**
-     * Adds session id to list of trusted session ids.
+     * Adds session id to list of allowed session ids.
      *
      * @param sessionID session id
      */
     void add(SessionID sessionID);
 
     /**
-     * Removes session id from list of trusted session ids.
+     * Removes session id from list of allowed session ids.
      *
      * @param sessionID
      */

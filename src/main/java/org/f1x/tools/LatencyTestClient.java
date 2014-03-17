@@ -22,9 +22,8 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.v1.FixSessionInitiator;
-import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -56,7 +55,7 @@ public class LatencyTestClient extends FixSessionInitiator {
     }
 
     public void sendMessage () throws IOException {
-        assert getSessionState() == SessionState.ApplicationConnected;
+        assert getSessionStatus() == SessionStatus.ApplicationConnected;
         mb.clear();
         mb.setMessageType(MsgType.ORDER_SINGLE);
         mb.add(1, getMicrosecondClock()); // timestamp of signal creation
@@ -77,10 +76,10 @@ public class LatencyTestClient extends FixSessionInitiator {
     }
 
     @Override
-    protected void onSessionStateChanged(SessionState oldState, SessionState newState) {
-        super.onSessionStateChanged(oldState, newState);
+    protected void onSessionStatusChanged(SessionStatus oldStatus, SessionStatus newStatus) {
+        super.onSessionStatusChanged(oldStatus, newStatus);
 
-        if (newState == SessionState.ApplicationConnected)
+        if (newStatus == SessionStatus.ApplicationConnected)
             new Thread("Message Generator") {
                 @Override
                 public void run() {
@@ -90,7 +89,7 @@ public class LatencyTestClient extends FixSessionInitiator {
     }
 
     private void sendMessages () {
-        while (getSessionState() == SessionState.ApplicationConnected) {
+        while (getSessionStatus() == SessionStatus.ApplicationConnected) {
             try {
                 long nextNanoTime = (intervalBetweenMessagesInNanos != 0) ? System.nanoTime() + intervalBetweenMessagesInNanos : 0;
                 while (active) {

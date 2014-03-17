@@ -36,7 +36,7 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.util.ByteArrayReference;
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.v1.FixSessionAcceptor;
@@ -143,7 +143,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
 
         private void sendExecutionReport (long clOrdId, Side side, double orderQty, CharSequence symbol, double orderPrice) throws IOException {
 
-            assert getSessionState() == SessionState.ApplicationConnected;
+            assert getSessionStatus() == SessionStatus.ApplicationConnected;
             synchronized (mb) {
                 mb.clear();
                 mb.setMessageType(MsgType.EXECUTION_REPORT);

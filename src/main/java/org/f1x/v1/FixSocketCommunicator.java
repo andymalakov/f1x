@@ -44,7 +44,7 @@ package org.f1x.v1;
 
 import org.f1x.api.FixSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.io.InputChannel;
 import org.f1x.io.InputStreamChannel;
 import org.f1x.io.OutputChannel;
@@ -81,7 +81,7 @@ public abstract class FixSocketCommunicator extends FixCommunicator {
         if (connectionInterceptor != null)
             connectionInterceptor.onNewConnection(socket);
 
-        setSessionState(SessionState.SocketConnected);
+        setSessionStatus(SessionStatus.SocketConnected);
         connect(getInputChannel(socket), getOutputChannel(socket));
     }
 

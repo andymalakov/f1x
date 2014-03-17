@@ -25,6 +25,7 @@ import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 
 public abstract class AbstractMessageLogTest {
@@ -35,7 +36,7 @@ public abstract class AbstractMessageLogTest {
     public File logDir;
 
     @Before
-    public void cleanLogDir() {
+    public void cleanLogDir() throws IOException {
         //tmpDir.delete();
 
         logDir = tmpDir.newFolder("log");
