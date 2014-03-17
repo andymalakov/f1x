@@ -26,6 +26,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 
 package org.f1x.log.file;
 
@@ -46,18 +60,21 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Test_DailyFileMessageLog extends AbstractMessageLogTest {
 
 
-    @Test
+    @Test (timeout = 30000)
     public void test() throws InterruptedException {
 
-        TestTimeSource timeSource = new TestTimeSource("20140303-23:01:02.999");
-        TestStreamOutputFactory streamFactory = new TestStreamOutputFactory();
+        final TestTimeSource timeSource = new TestTimeSource("20140303-23:01:02.999");
+        final OutputStreamFactory streamFactory = new BufferedOutputStreamFactory(DailyFileMessageLogFactory.DEFAULT_FILE_BUFFER_SIZE, true);
 
-
-        DailyFileMessageLogFactory logFactory = new DailyFileMessageLogFactory(logDir, streamFactory);
-        logFactory.setTimeSource(timeSource);
-        logFactory.setTimeZone(TimeZone.getDefault());
-        logFactory.setLogFormatter(new AsIsLogFormatter());
-        DailyFileMessageLog log = (DailyFileMessageLog)logFactory.create(SESSION_ID);
+        final AtomicInteger rolloverCount = new AtomicInteger();
+        final int flushPeriod = 0; // ensures that timesource.sleep() is called only by DailyFileMessageLog.OutputStreamRollover
+        DailyFileMessageLog log = new DailyFileMessageLog(SESSION_ID, logDir, streamFactory, null, timeSource, TimeZone.getDefault()) {
+            @Override
+            protected void onRollover() {
+                rolloverCount.incrementAndGet();
+            }
+        };
+        log.start(SESSION_ID, timeSource, flushPeriod);
 
 
         log(log, "Message1");
@@ -66,7 +83,8 @@ public class Test_DailyFileMessageLog extends AbstractMessageLogTest {
 
         timeSource.signalWakeUp();
 
-        while (streamFactory.closedStreamsCount.get() < 1) {
+        // wait for rollover
+        while (rolloverCount.get() < 1) {
             Thread.yield();
         }
 
@@ -92,59 +110,12 @@ public class Test_DailyFileMessageLog extends AbstractMessageLogTest {
 
     }
 
-    private static class TestStreamOutputFactory extends BufferedOutputStreamFactory {
-
-        final AtomicInteger closedStreamsCount = new AtomicInteger();
-
-        public TestStreamOutputFactory() {
-            super(4096, false);
-        }
-
-        @Override
-        public OutputStream create(File file) {
-            return new OutputStreamWrapper (super.create(file));
-        }
-
-        // intercept OutputStream.close()
-        private class OutputStreamWrapper extends OutputStream {
-            final OutputStream delegate;
-
-            private OutputStreamWrapper(OutputStream delegate) {
-                this.delegate = delegate;
-            }
-
-            @Override
-            public void write(int b) throws IOException {
-                delegate.write(b);
-            }
-
-            @Override
-            public void write(byte[] b) throws IOException {
-                delegate.write(b);
-            }
-
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-                delegate.write(b, off, len);
-            }
-
-            @Override
-            public void flush() throws IOException {
-                delegate.flush();
-            }
-
-            @Override
-            public void close() throws IOException {
-                delegate.close();
-                closedStreamsCount.incrementAndGet();
-            }
-        }
-    }
 
     private static class TestTimeSource implements TimeSource {
         final ReentrantLock lock = new ReentrantLock();
         final Condition wakeUpSignal = lock.newCondition();
-        long now;
+        final Condition sleeperIsWaiting = lock.newCondition();
+        final long now;
 
         TestTimeSource(String timestamp) {
             now = TestUtils.parseLocalTimestamp(timestamp);
@@ -159,15 +130,17 @@ public class Test_DailyFileMessageLog extends AbstractMessageLogTest {
         public void sleep(long millis) throws InterruptedException {
             lock.lock();
             try {
+                sleeperIsWaiting.signal();
                 wakeUpSignal.await();
             } finally {
                 lock.unlock();
             }
         }
 
-        void signalWakeUp() {
+        void signalWakeUp() throws InterruptedException {
             lock.lock();
             try {
+                sleeperIsWaiting.await();
                 wakeUpSignal.signal();
             } finally {
                 lock.unlock();

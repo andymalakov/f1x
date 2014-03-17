@@ -25,6 +25,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.v1.schedule;
 
 import org.f1x.util.StoredTimeSource;
@@ -285,6 +299,16 @@ public class Test_SimpleSessionSchedule {
         assertSessionWaitAndEndTime("20140121-09:01:00.000", "20140121-23:00:00.000", 0); // Tuesday shortly after open
         assertSessionWaitAndEndTime("20140117-22:59:00.000", "20140117-23:00:00.000", 0); // Friday before close
         assertSessionWaitAndEndTime("20140117-23:01:00.000", "20140120-23:00:00.000", (1+24+24+9)*3600000 - 1*60000); // Friday after close
+    }
+
+
+    /** Test weekly "Monday to Friday" schedule where start time is later than end time */
+    @Test
+    public void testFridayBeforeEnd () throws InterruptedException {
+        schedule = makeSchedule(Calendar.SUNDAY, Calendar.FRIDAY, "17:30:00", "16:59:00", true);  // Sun-Fri daily from 17:30 till 16:59 next day
+
+        assertNextSession ("20140314-13:30:00.000", "20140316-17:30:00.000", "20140317-16:59:00.000"); // Friday midday
+        assertSessionWaitAndEndTime("20140314-13:30:00.000", "20140314-16:59:00.000", 0); // Friday before close
     }
 
     /// Helpers
