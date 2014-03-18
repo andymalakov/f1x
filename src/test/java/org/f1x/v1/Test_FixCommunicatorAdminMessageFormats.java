@@ -53,28 +53,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.v1;
 
 import junit.framework.Assert;
 import org.f1x.SessionIDBean;
-import org.f1x.api.FixSettings;
-import org.f1x.api.FixVersion;
 import org.f1x.api.message.fields.SessionRejectReason;
-import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionStatus;
-import org.f1x.io.InputChannel;
-import org.f1x.io.OutputChannel;
-import org.f1x.io.socket.ConnectionInterceptor;
+import org.f1x.io.EmptyInputChannel;
+import org.f1x.io.TextOutputChannel;
 import org.f1x.util.StoredTimeSource;
 import org.junit.Test;
 
 import java.io.IOException;
 
 /** Verify format of administrative messages */
-public class Test_FixCommunicator {
+public class Test_FixCommunicatorAdminMessageFormats {
 
     private final TextOutputChannel out = new TextOutputChannel();
-    private final FixCommunicator fix = new TestFixCommunicator (out);
+    private final FixCommunicator fix = new TestFixCommunicator ( new SessionIDBean("CLIENT", "SERVER"), StoredTimeSource.makeFromUTCTimestamp("20140101-10:10:10.100"), new EmptyInputChannel(), out);
 
     @Test
     public void testHeartbeat() throws IOException {
@@ -128,66 +137,4 @@ public class Test_FixCommunicator {
         Assert.assertEquals("Unexpected FIX message", expected, out.toString());
     }
 
-    private static class TestFixCommunicator extends FixCommunicator {
-        private final SessionID sessionID = new SessionIDBean("CLIENT", "SERVER");
-
-        public TestFixCommunicator(OutputChannel out) {
-            super(FixVersion.FIX44, new FixSettings(), StoredTimeSource.makeFromUTCTimestamp("20140101-10:10:10.100"));
-
-            connect(new EmptyInputChannel(), out);
-
-            setSessionStatus(SessionStatus.ApplicationConnected);
-        }
-
-        @Override
-        public void setConnectionInterceptor(ConnectionInterceptor connectionInterceptor) {
-        }
-
-        @Override
-        public SessionID getSessionID() {
-            return sessionID;
-        }
-
-        @Override
-        protected void processInboundLogon(boolean isSequenceNumberReset) throws IOException {
-        }
-
-        @Override
-        public void run() {
-        }
-    }
-
-    private static class EmptyInputChannel implements InputChannel {
-
-        @Override
-        public int read(byte[] buffer, int offset, int length) throws IOException {
-            return -1; // no data
-        }
-
-        @Override
-        public void close() throws IOException {
-        }
-    }
-
-    private static class TextOutputChannel implements OutputChannel {
-
-        private StringBuilder sb = new StringBuilder();
-
-        @Override
-        public void write(byte[] buffer, int offset, int length) throws IOException {
-            sb.append (new String (buffer, offset, length));
-        }
-
-        @Override
-        public void close() throws IOException {
-            sb.setLength(0);
-        }
-
-        @Override
-        public String toString() {
-            String result = sb.toString().replaceAll("\u0001", "|");
-            sb.setLength(0);
-            return result;
-        }
-    }
 }
