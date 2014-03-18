@@ -1,0 +1,5 @@
+Changes in 0.2
+==============
+ * enum SessionState renamed to SessionStatus. SessionState now describe complex session state.
+ + Added MessageLog and FixCommunicator.setMessageLogFactory()
+ + Added FixSessionSchedule
