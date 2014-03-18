@@ -17,7 +17,7 @@ package org.f1x.v1;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static junit.framework.Assert.fail;
+import static org.junit.Assert.fail;
 
 public class Test_SequenceNumbers {
 

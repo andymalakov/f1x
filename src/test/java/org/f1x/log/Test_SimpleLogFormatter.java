@@ -14,7 +14,7 @@
 
 package org.f1x.log;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.f1x.util.StoredTimeSource;
 import org.f1x.util.TestUtils;
 import org.f1x.util.TimeSource;

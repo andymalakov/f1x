@@ -15,13 +15,13 @@
 package org.f1x.util.parse;
 
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
 
-import static junit.framework.Assert.fail;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 
 public class Test_NumbersParser {

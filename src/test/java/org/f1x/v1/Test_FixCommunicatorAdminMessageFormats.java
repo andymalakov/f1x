@@ -14,7 +14,7 @@
 
 package org.f1x.v1;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.f1x.SessionIDBean;
 import org.f1x.api.message.fields.SessionRejectReason;
 import org.f1x.io.EmptyInputChannel;

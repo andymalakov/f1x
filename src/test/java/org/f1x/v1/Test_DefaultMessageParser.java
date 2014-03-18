@@ -14,7 +14,7 @@
 
 package org.f1x.v1;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.Tools;
