@@ -73,7 +73,7 @@
 			<pathelement location="${classesdir}"/>
             <pathelement location="${lib}/disruptor-3.2.0.jar"/>
             <pathelement location="${lib}/gflogger.jar"/>
-            <pathelement location="${tools}/junit-4.7.jar	"/>
+            <pathelement location="${tools}/junit-4.11.jar	"/>
             <pathelement location="${tools}/allocation.jar"/>
         </classpath>
     </javac>
