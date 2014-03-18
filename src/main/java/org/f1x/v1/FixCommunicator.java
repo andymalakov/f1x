@@ -82,6 +82,20 @@
  * limitations under the License.
  */
 
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.f1x.v1;
 
 import org.f1x.api.FixSettings;
@@ -229,9 +243,22 @@ public abstract class FixCommunicator implements FixSession {
 
     /** Process inbound messages until session ends */
     protected final void processInboundMessages() {
+        processInboundMessages(null, 0);
+    }
+
+    /** Process inbound messages until session ends
+     * @param logonBuffer buffer containing session LOGON message and may be some other messages or a part of them
+     * @param length actual number of bytes that should be consumed from logonBuffer
+     */
+    protected final void processInboundMessages(byte [] logonBuffer, int length) {
         LOGGER.info().append("Processing FIX Session").commit();
         try {
             int offset = 0;
+            if (logonBuffer != null) {
+                System.arraycopy(logonBuffer, 0, inboundMessageBuffer, 0, length);
+                offset = processInboundMessages(length);
+            }
+
             while (active) { ///prevents logged out session from re-connect
                 int bytesRead = in.read(inboundMessageBuffer, offset, inboundMessageBuffer.length - offset);
                 if (bytesRead <= 0) {
@@ -254,7 +281,7 @@ public abstract class FixCommunicator implements FixSession {
         assertSessionStatus(SessionStatus.Disconnected);
     }
 
-    private void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
+    protected void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
         if (active) {
             if (logStackTrace)
                 LOGGER.error().append(errorText).append(" : ").append(e).commit();
