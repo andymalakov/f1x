@@ -31,22 +31,67 @@ package org.f1x.api.session;
 /**
  * Identity of FIX Session
  */
-public interface SessionID {
-    public CharSequence getSenderCompId();
-    public CharSequence getSenderSubId();
-    public CharSequence getTargetCompId();
-    public CharSequence getTargetSubId();
+public abstract class SessionID {
+
+    public abstract CharSequence getSenderCompId();
+
+    public abstract CharSequence getSenderSubId();
+
+    public abstract CharSequence getTargetCompId();
+
+    public abstract CharSequence getTargetSubId();
 
     @Override
-    boolean equals(Object object);
+    public final boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+
+        if (obj instanceof SessionID) {
+            SessionID sessionID = (SessionID) obj;
+            return equal(getSenderCompId(), sessionID.getSenderCompId()) && equal(getTargetCompId(), sessionID.getTargetCompId()) &&
+                    equal(getSenderSubId(), sessionID.getSenderSubId()) && equal(getTargetSubId(), sessionID.getTargetSubId());
+        } else {
+            return false;
+        }
+    }
 
     @Override
-    int hashCode();
+    public final int hashCode() {
+        return hashCode(getSenderCompId()) + hashCode(getTargetCompId()) +
+                hashCode(getSenderSubId()) + hashCode(getTargetSubId());
+    }
 
-    /**
-     * Returns deep copy of instance.
-     * Must return copy of same class.
-     * @return deep copy of current instance
-     */
-    SessionID copy();
+    private static boolean equal(CharSequence sequence1, CharSequence sequence2) {
+        if (sequence1 == sequence2)
+            return true;
+
+        if (sequence1 == null)
+            return sequence2.length() == 0;
+        else if(sequence2 == null)
+            return sequence1.length() == 0;
+
+        int length1 = sequence1.length();
+        int length2 = sequence2.length();
+        if (length1 != length2)
+            return false;
+
+        for (int index = 0; index < length1; index++)
+            if (sequence1.charAt(index) != sequence2.charAt(index))
+                return false;
+
+        return true;
+    }
+
+    private static int hashCode(CharSequence sequence) {
+        if (sequence == null)
+            return 0;
+
+        int h = 0;
+        int length = sequence.length();
+        for (int index = 0; index < length; index++)
+            h = 31 * h + sequence.charAt(index);
+
+        return h;
+    }
+
 }

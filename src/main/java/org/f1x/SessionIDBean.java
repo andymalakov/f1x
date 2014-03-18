@@ -30,7 +30,8 @@ package org.f1x;
 
 import org.f1x.api.session.SessionID;
 
-public class SessionIDBean implements SessionID {
+public class SessionIDBean extends SessionID {
+
     private String senderCompId;
     private String senderSubId;
     private String targetCompId;
@@ -49,6 +50,11 @@ public class SessionIDBean implements SessionID {
         this.senderSubId = senderSubId;
         this.targetCompId = targetCompId;
         this.targetSubId = targetSubId;
+    }
+
+    public SessionIDBean(SessionID sessionID){
+        this(sessionID.getSenderCompId().toString(), sessionID.getSenderSubId().toString(),
+                sessionID.getTargetCompId().toString(), sessionID.getTargetSubId().toString());
     }
 
     @Override
@@ -87,13 +93,16 @@ public class SessionIDBean implements SessionID {
         this.targetSubId = targetSubId;
     }
 
-    @Override
-    public SessionIDBean copy() {
-        return new SessionIDBean(getSenderCompId(), getSenderSubId(), getTargetCompId(), getTargetSubId());
+    public void clear(){
+        setSenderCompId(null);
+        setSenderSubId(null);
+        setTargetCompId(null);
+        setTargetSubId(null);
     }
 
     @Override
     public String toString() {
         return senderCompId + '-' + targetCompId;
     }
+
 }

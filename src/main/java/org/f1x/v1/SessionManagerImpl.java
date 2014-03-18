@@ -1,5 +1,6 @@
 package org.f1x.v1;
 
+import org.f1x.SessionIDBean;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionManager;
 import org.f1x.util.ObjectFactory;
@@ -67,7 +68,7 @@ public class SessionManagerImpl implements SessionManager {
 
     @Override
     public void add(SessionID sessionID) {
-        sessionIDs.add(sessionID.copy());
+        sessionIDs.add(new SessionIDBean(sessionID));
     }
 
     @Override

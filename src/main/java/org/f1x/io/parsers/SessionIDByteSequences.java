@@ -34,7 +34,8 @@ import org.f1x.util.MutableByteSequence;
 /**
  * Mutable implementation of SessionID. Used for initial session lookup.
  */
-public class SessionIDByteSequences implements SessionID {
+public class SessionIDByteSequences extends SessionID {
+
     private final MutableByteSequence senderCompId;
     private final MutableByteSequence senderSubId;
     private final MutableByteSequence targetCompId;
@@ -81,12 +82,6 @@ public class SessionIDByteSequences implements SessionID {
 
     public void setTargetSubId(byte [] buffer, int offset, int length) {
         targetSubId.set(buffer, offset, length);
-    }
-
-    @Override
-    public SessionID copy() {
-        // TODO: implement
-        return null;
     }
 
     public void clear(){
