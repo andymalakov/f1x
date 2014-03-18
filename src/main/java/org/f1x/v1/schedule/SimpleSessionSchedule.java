@@ -39,6 +39,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.f1x.v1.schedule;
 
 import org.f1x.util.AsciiUtils;
@@ -48,7 +62,11 @@ import org.f1x.util.parse.TimeOfDayParser;
 import java.util.Calendar;
 import java.util.TimeZone;
 
-//TODO: Use ZoneOffsetTransitionRule instead of Calendar to avoid GC?
+/**
+ * Simple implementation of SessionSchedule that can define daily or weekly schedule during with specific start/end time of day.
+ *
+ * This implementation is NOT thread-safe.
+ */
 public class SimpleSessionSchedule implements SessionSchedule {
     protected final TimeEndPoint start;
     protected final TimeEndPoint end;
@@ -57,8 +75,8 @@ public class SimpleSessionSchedule implements SessionSchedule {
     private final TimeSource timeSource;
 
     /**
-     * @param startDayOfWeek Session Start day of week (can be <code>-1</code> for sessions that happen every day). For example, <code>Calendar.MONDAY</code>.
-     * @param endDayOfWeek  Session End day of week (must be <code>-1</code> if startDayOfWeek is <code>-1</code>). For example, <code>Calendar.FRIDAY</code>.
+     * @param startDayOfWeek Session Start day of week (can be <code>-1</code> for sessions that happen every day). Week starts with sunday and has code 1. For example, <code>Calendar.MONDAY</code>.
+     * @param endDayOfWeek  Session End day of week (must be <code>-1</code> if startDayOfWeek is <code>-1</code>). Week starts with sunday and has code 1. For example, <code>Calendar.FRIDAY</code>.
      * @param startTimeOfDay session start time of day (in HH:MM:SS format)
      * @param endTimeOfDay session end time of day (in HH:MM:SS format)
      * @param isDailySchedule <code>true</code> for daily FIX sessions, <code>false</code> for multi-day sessions. Makes sense only when startDayOfWeek and endDayOfWeek are set.
@@ -220,7 +238,7 @@ public class SimpleSessionSchedule implements SessionSchedule {
 
     @Override
     public String toString() {
-        return start + " " + end;
+        return start + " " + end + ((isDailySchedule)?" Daily":" Weekly") ;
     }
 
     protected static class TimeEndPoint {
@@ -229,14 +247,6 @@ public class SimpleSessionSchedule implements SessionSchedule {
         private final int hour;
         private final int minute;
         private final int second;
-
-//        private TimeEndPoint(int dayOfWeek, int hour, int minute, int second, TimeZone tz) {
-//            calendar = Calendar.getInstance(tz);
-//            this.dayOfWeek = dayOfWeek;
-//            this.hour = hour;
-//            this.minute = minute;
-//            this.second = second;
-//        }
 
         private TimeEndPoint(int dayOfWeek, String timeOfDay, TimeZone tz) {
             this.calendar = Calendar.getInstance(tz);
@@ -302,7 +312,7 @@ public class SimpleSessionSchedule implements SessionSchedule {
 
         @Override
         public String toString() {
-            return String.format("%02d:%02d:%02d", hour, minute, second);
+            return String.format("%02d:%02d:%02d (%d)", hour, minute, second, dayOfWeek);
         }
 
     }
