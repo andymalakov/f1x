@@ -14,9 +14,9 @@
 package org.f1x.util;
 
 /**
- * Fixed-size reference objectPool. Thread safe.
+ * Fixed-size object pool. Thread safe.
  *
- * @param <E> type of elements
+ * @param <E> type of objects in the pool.
  */
 public final class ObjectPool<E> {
 
@@ -24,12 +24,12 @@ public final class ObjectPool<E> {
 
     private int count;
 
-    public ObjectPool(int capacity, ObjectFactory<E> objectFactory) {
-        if (capacity < 0)
-            throw new IllegalArgumentException("capacity < 0");
+    public ObjectPool(int maxSize, ObjectFactory<E> objectFactory) {
+        if (maxSize < 0)
+            throw new IllegalArgumentException("maxSize < 0");
 
-        this.objects = new Object[capacity];
-        fill(capacity, objectFactory);
+        this.objects = new Object[maxSize];
+        fill(maxSize, objectFactory);
     }
 
     private void fill(int capacity, ObjectFactory<E> objectFactory) {
@@ -43,6 +43,7 @@ public final class ObjectPool<E> {
         }
     }
 
+    /** Recycles object previously borrowed using {@link #borrow()} */
     public void release(E object) {
         if (object == null)
             throw new NullPointerException("object == null");
@@ -53,6 +54,11 @@ public final class ObjectPool<E> {
             objects[count++] = object;
         }
     }
+
+    /**
+     * @return object borrowed from pool, or <code>null</code> if pool is empty.
+     * Caller must return borrowed object after use using {@link ObjectPool#release(Object)}.
+     */
 
     @SuppressWarnings("unchecked")
     public synchronized E borrow() {
@@ -73,6 +79,7 @@ public final class ObjectPool<E> {
 
 
     private boolean isEmpty() {
+        assert Thread.holdsLock(this);
         return count == 0;
     }
 
@@ -85,6 +92,7 @@ public final class ObjectPool<E> {
     }
 
     private boolean isFull() {
+        assert Thread.holdsLock(this);
         return count == objects.length;
     }
 
