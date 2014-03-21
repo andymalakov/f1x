@@ -55,7 +55,7 @@ public class SessionManagerImpl implements SessionManager {
                 return new AcceptorWrapper(factory.create());
             }
         });
-        this.allAcceptors = acceptorPool.toArray(new AcceptorWrapper[maxNumOfManagedSessions]);
+        this.allAcceptors = acceptorPool.toArray(new AcceptorWrapper[maxNumOfManagedSessions]); //TODO: This is unnecessary
         this.logoutTimeout = logoutTimeout;
         this.threadPool = new ThreadPoolExecutor(maxNumOfManagedSessions, maxNumOfManagedSessions, 0, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<Runnable>(maxNumOfManagedSessions * 2));
         sessionIDs = Collections.newSetFromMap(new ConcurrentHashMap<SessionID, Boolean>(32));
@@ -66,6 +66,7 @@ public class SessionManagerImpl implements SessionManager {
     public boolean accept(Socket socket) {
         AcceptorWrapper acceptor = acceptorPool.borrow();
         if (acceptor == null) {
+            LOGGER.warn().append("Session Manager run out of free acceptors.").commit();
             return false;
         } else {
             acceptor.setSocket(socket);
@@ -73,6 +74,8 @@ public class SessionManagerImpl implements SessionManager {
                 threadPool.execute(acceptor);
             } catch (RejectedExecutionException e) {
                 LOGGER.warn().append("Someone called accept after calling close.").append(e).commit();
+                acceptor.setSocket(null);
+                acceptorPool.release(acceptor);
                 return false;
             }
             return true;
@@ -106,7 +109,7 @@ public class SessionManagerImpl implements SessionManager {
         threadPool.shutdown();
 
         for (AcceptorWrapper acceptor : allAcceptors)
-            acceptor.logout("Bye");
+            acceptor.logout("Server shutdown");
 
         try {
             if (threadPool.awaitTermination(logoutTimeout, TimeUnit.MILLISECONDS)) {
@@ -137,6 +140,7 @@ public class SessionManagerImpl implements SessionManager {
             } catch (IOException e) {
                 LOGGER.warn().append("Error connecting: ").append(e);
             } finally {
+                setSocket(null);
                 acceptorPool.release(this);
             }
         }
