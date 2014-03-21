@@ -21,7 +21,7 @@ import org.junit.Test;
 public class Test_DefaultLogonSessionParser {
 
     @Test
-    public void simple() {
+    public void simple() throws Exception {
         DefaultLogonSessionParser parser = new DefaultLogonSessionParser();
 
 

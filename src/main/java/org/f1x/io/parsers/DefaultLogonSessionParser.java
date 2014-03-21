@@ -27,10 +27,10 @@ public class DefaultLogonSessionParser implements LogonSessionParser {
     private static final int TARGET_COMP_ID = 56;
     private static final int TARGET_SUB_ID = 57;
 
-    private final LogonMessageScanner<SessionIDByteSequences> scanner;
+    private final SimpleMessageScanner<SessionIDByteSequences> scanner;
 
     public DefaultLogonSessionParser() {
-        this.scanner = new LogonMessageScanner<SessionIDByteSequences>() {
+        this.scanner = new SimpleMessageScanner<SessionIDByteSequences>() {
 
             @Override
             protected boolean onTagNumber(int tagNum, SessionIDByteSequences sessionID) throws FixParserException {
@@ -54,7 +54,7 @@ public class DefaultLogonSessionParser implements LogonSessionParser {
     @Override
     public SessionID parse(byte[] buffer, int offset, int length) throws FixParserException {
         SessionIDByteSequences sessionID = new SessionIDByteSequences(MAX_COMPONENT_ID_LENGTH); //TODO: Pool or ThreadLocal
-        scanner.scan(buffer, offset, length, sessionID);
+        scanner.parse(buffer, offset, length, sessionID);
         return sessionID;
     }
 }
