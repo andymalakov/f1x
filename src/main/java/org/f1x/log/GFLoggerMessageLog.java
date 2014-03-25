@@ -27,7 +27,7 @@ import java.io.IOException;
 public class GFLoggerMessageLog implements MessageLog {
     private static final GFLog LOGGER = GFLogFactory.getLog(GFLoggerMessageLog.class);
 
-    //TODO: Ask gflogger dev to add GFLog.append(byte[], offset,lenght) to avoid this
+    //TODO: Ask gflogger dev to add GFLog.append(byte[], offset, length) to avoid this
     private final ThreadLocal<ByteArrayReference> byteSequences = new ThreadLocal<>();
 
     public GFLoggerMessageLog() {
