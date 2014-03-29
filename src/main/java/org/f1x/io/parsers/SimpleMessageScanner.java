@@ -24,7 +24,7 @@ import org.f1x.util.AsciiUtils;
  */
 public abstract class SimpleMessageScanner<Cookie> {
 
-    private static final int MIN_BODY_LENGTH = "8=FIX.X.Y|9=123456789|".length();
+    public static final int MIN_MESSAGE_LENGTH = "8=FIX.X.Y|9=123456789|".length();
     private static final byte [] HEADER_START = AsciiUtils.getBytes("8=FIX.");
     private static final int HEADER_START_LENGTH = HEADER_START.length;
     private static final byte SOH = 1;
@@ -39,12 +39,12 @@ public abstract class SimpleMessageScanner<Cookie> {
      *  Negative value indicates that supplied buffer does not contain whole message (in which case result is the number of missing bytes).
      *  Positive value indicates that a single message is completely parsed (in which case result is offset of the first byte after the message).
      */
-    public int parse (byte [] buffer, int offset, int len, Cookie cookie) throws LogonParserException {
-        if (len < MIN_BODY_LENGTH)
-            throw LogonParserException.BUFFER_IS_TOO_SMALL;
+    public int parse (byte [] buffer, int offset, int len, Cookie cookie) throws MessageFormatException {
+        if (len < MIN_MESSAGE_LENGTH)
+            throw MessageFormatException.BUFFER_IS_TOO_SMALL;
 
         if ( ! AsciiUtils.equals(HEADER_START, buffer, offset, HEADER_START_LENGTH))
-            throw LogonParserException.NOT_FIX_MESSAGE;
+            throw MessageFormatException.NOT_FIX_MESSAGE;
 
         int end = len + offset;
 
@@ -94,7 +94,7 @@ public abstract class SimpleMessageScanner<Cookie> {
             }
         }
         if (bodyLength == 0)
-            throw LogonParserException.MISSING_BODY_LEN;
+            throw MessageFormatException.MISSING_BODY_LEN;
         else
             return end;
 
@@ -106,21 +106,21 @@ public abstract class SimpleMessageScanner<Cookie> {
     /** @return true to continue parsing message or false to skip the rest tags */
     protected abstract boolean onTagValue(int tagNum, byte [] message, int tagValueStart, int tagValueLen, Cookie cookie) throws FixParserException;
 
-    private static int parseDigit(byte b) throws LogonParserException {
+    private static int parseDigit(byte b) throws MessageFormatException {
         int digit = b - '0';
         if (digit < 0 || digit > 9)
-            throw LogonParserException.INVALID_NUMBER;
+            throw MessageFormatException.INVALID_NUMBER;
         return digit;
     }
 
 
-    public static final class LogonParserException extends FixParserException {
-        static final LogonParserException BUFFER_IS_TOO_SMALL = new LogonParserException ("Message is too small");
-        static final LogonParserException INVALID_NUMBER = new LogonParserException("Expecting a number");
-        static final LogonParserException NOT_FIX_MESSAGE = new LogonParserException("Not a FIX message");
-        static final LogonParserException MISSING_BODY_LEN = new LogonParserException("Missing BodyLength(9) tag");
+    public static class MessageFormatException extends FixParserException {
+        public static final MessageFormatException BUFFER_IS_TOO_SMALL = new MessageFormatException("Message is too small");
+        public static final MessageFormatException INVALID_NUMBER = new MessageFormatException("Expecting a number");
+        public static final MessageFormatException NOT_FIX_MESSAGE = new MessageFormatException("Not a FIX message");
+        public static final MessageFormatException MISSING_BODY_LEN = new MessageFormatException("Missing BodyLength(9) tag");
 
-        private LogonParserException (String message) {
+        private MessageFormatException(String message) {
             super(message);
         }
 

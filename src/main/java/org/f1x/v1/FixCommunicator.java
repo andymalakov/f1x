@@ -64,7 +64,7 @@ public abstract class FixCommunicator implements FixSession {
 
 
     private SessionStatus status = SessionStatus.Disconnected;
-    protected volatile boolean active = true; // close() sets this to false
+    protected volatile boolean active = true; // close() sets this to false // TODO: we must set to true on connect for session acceptor
     private final SequenceNumbers seqNum = new SequenceNumbers(); // hidden for thread-safety reasons
 
     // used by receiver thread only

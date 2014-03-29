@@ -14,7 +14,7 @@
 package org.f1x.api.session;
 
 import org.f1x.SessionIDBean;
-import org.f1x.io.parsers.SessionIDByteSequences;
+import org.f1x.v1.SessionIDByteReferences;
 import org.f1x.util.AsciiUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -24,7 +24,7 @@ public class Test_SessionID {
     @Test
     public void testEmptySessionsIDsAreEqual() {
         SessionIDBean sessionID1 = new SessionIDBean();
-        SessionIDByteSequences sessionID2 = new SessionIDByteSequences(32);
+        SessionIDByteReferences sessionID2 = new SessionIDByteReferences();
         assertThatEqual(sessionID1, sessionID2);
 
         fill("", "", "", "", sessionID1, sessionID2);
@@ -34,7 +34,7 @@ public class Test_SessionID {
     @Test
     public void testSameSessionIDsAreEqual() {
         SessionIDBean sessionID1 = new SessionIDBean();
-        SessionIDByteSequences sessionID2 = new SessionIDByteSequences(32);
+        SessionIDByteReferences sessionID2 = new SessionIDByteReferences();
         fill("senderCompID", "senderSubID", "targetCompID", "targetSubID", sessionID1, sessionID2);
         assertThatEqual(sessionID1, sessionID2);
 
@@ -45,7 +45,7 @@ public class Test_SessionID {
     @Test
     public void testDifferentSessionIDsAreNotEqual() {
         SessionIDBean sessionID1 = new SessionIDBean();
-        SessionIDByteSequences sessionID2 = new SessionIDByteSequences(32);
+        SessionIDByteReferences sessionID2 = new SessionIDByteReferences();
         fill("sc", "ss", "tc", "ts", sessionID1);
         fill("sc", null, "ss", null, sessionID2);
         assertThatDifferent(sessionID1, sessionID2);
@@ -66,7 +66,7 @@ public class Test_SessionID {
     @Test
     public void testSameSessionIDsMustHaveSameHashCode() {
         SessionIDBean sessionID1 = new SessionIDBean();
-        SessionIDByteSequences sessionID2 = new SessionIDByteSequences(32);
+        SessionIDByteReferences sessionID2 = new SessionIDByteReferences();
         assertThatHaveSameHashCode(sessionID1, sessionID2);
 
         fill("senderCompID", "senderSubID", "targetCompID", "targetSubID", sessionID1, sessionID2);
@@ -79,7 +79,7 @@ public class Test_SessionID {
     @Test
     public void testDifferentSessionIDsShouldHaveDifferentHashCode() {
         SessionIDBean sessionID1 = new SessionIDBean();
-        SessionIDByteSequences sessionID2 = new SessionIDByteSequences(32);
+        SessionIDByteReferences sessionID2 = new SessionIDByteReferences();
         fill("sc", "ss", "tc", "ts", sessionID1);
         fill("sc", null, "ss", null, sessionID2);
         assertThatHaveDifferentHashCode(sessionID1, sessionID2);
@@ -113,7 +113,7 @@ public class Test_SessionID {
         Assert.assertNotEquals(sessionID1.hashCode(), sessionID2.hashCode());
     }
 
-    private static void fill(String senderCompID, String senderSubID, String targetCompID, String targetSubID, SessionIDBean sessionID1, SessionIDByteSequences sessionID2) {
+    private static void fill(String senderCompID, String senderSubID, String targetCompID, String targetSubID, SessionIDBean sessionID1, SessionIDByteReferences sessionID2) {
         fill(senderCompID, senderSubID, targetCompID, targetSubID, sessionID1);
         fill(senderCompID, senderSubID, targetCompID, targetSubID, sessionID2);
     }
@@ -125,7 +125,7 @@ public class Test_SessionID {
         sessionID.setTargetSubId(targetSubID);
     }
 
-    private static void fill(String senderCompID, String senderSubID, String targetCompID, String targetSubID, SessionIDByteSequences sessionID) {
+    private static void fill(String senderCompID, String senderSubID, String targetCompID, String targetSubID, SessionIDByteReferences sessionID) {
         sessionID.clear();
         if (senderCompID != null)
             sessionID.setSenderCompId(AsciiUtils.getBytes(senderCompID), 0, senderCompID.length());
