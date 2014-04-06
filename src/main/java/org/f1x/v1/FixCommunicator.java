@@ -64,7 +64,7 @@ public abstract class FixCommunicator implements FixSession {
 
 
     private SessionStatus status = SessionStatus.Disconnected;
-    protected volatile boolean active = true; // close() sets this to false // TODO: we must set to true on connect for session acceptor
+    protected volatile boolean active; // close() sets this to false
     private final SequenceNumbers seqNum = new SequenceNumbers(); // hidden for thread-safety reasons
 
     // used by receiver thread only
@@ -96,6 +96,11 @@ public abstract class FixCommunicator implements FixSession {
         sessionMessageBuilder = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
         messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), timeSource);
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
+    }
+
+    @Override
+    public void run() {
+        active = true;
     }
 
     @Override

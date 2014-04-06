@@ -1,6 +1,7 @@
 package org.f1x.v1;
 
 import org.f1x.SessionIDBean;
+import org.f1x.TestCommon;
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.session.SessionManager;
 import org.f1x.api.session.SessionState;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
@@ -23,7 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.*;
 
 
-public class Test_SessionAcceptorWrapper {
+public class Test_SessionAcceptorWrapper extends TestCommon {
 
     private SessionAcceptorWrapper wrapper;
     private int onStopInvocationCount;
@@ -66,8 +68,15 @@ public class Test_SessionAcceptorWrapper {
     }
 
     @Test(timeout = 300)
-    public void testSocketExceptionDuringReading() throws IOException {
-        throwExceptionOnSocketRead();
+    public void testSocketException() throws IOException {
+        throwExceptionOnSocketRead(SocketException.class);
+        simulateWrapperRun();
+        assertThatAcceptorWasNotStarted();
+    }
+
+    @Test(timeout = 300)
+    public void testSocketTimeoutException() throws IOException {
+        throwExceptionOnSocketRead(SocketTimeoutException.class);
         simulateWrapperRun();
         assertThatAcceptorWasNotStarted();
     }
@@ -76,6 +85,16 @@ public class Test_SessionAcceptorWrapper {
     public void testInvalidLogon() throws IOException {
         String logonWithoutBodyLength = "8=FIX.4.4|35=A|34=1|49=SC|50=SS|52=20140101-10:10:10.100|56=TC|57=TS|98=0|108=30|141=Y|383=8192|10=080|";
         simulateMessageOnSocketRead(logonWithoutBodyLength);
+        simulateWrapperRun();
+        assertThatAcceptorWasNotStarted();
+    }
+
+    @Test
+    public void testVeryLongLogonMessage() throws IOException {
+        String veryLongLogon = "8=FIX.4.4|9="
+                + (acceptor.getSettings().getMaxInboundMessageSize() + 1)
+                + "|35=A|34=1|49=SC|50=SS|52=20140101-10:10:10.100|56=TC|57=TS|98=0|108=30|141=Y|383=8192|10=080|";
+        simulateMessageOnSocketRead(veryLongLogon);
         simulateWrapperRun();
         assertThatAcceptorWasNotStarted();
     }
@@ -97,15 +116,14 @@ public class Test_SessionAcceptorWrapper {
         assertThatAcceptorWasStarted(logon);
     }
 
-
     @After
     public void assertOnStopInvocation() {
         assertEquals(1, onStopInvocationCount);
     }
 
-    private void throwExceptionOnSocketRead() throws IOException {
+    private void throwExceptionOnSocketRead(Class<? extends Throwable> exceptionClass) throws IOException {
         InputStream in = mock(InputStream.class);
-        when(in.read(any(byte[].class), anyInt(), anyInt())).thenThrow(SocketException.class);
+        when(in.read(any(byte[].class), anyInt(), anyInt())).thenThrow(exceptionClass);
         when(socket.getInputStream()).thenReturn(in);
     }
 

@@ -10,7 +10,7 @@ public class SessionIDByteReferences extends SessionID {
     private final ByteArrayReference targetCompID = new ByteArrayReference();
     private final ByteArrayReference targetSubID = new ByteArrayReference();
 
-    public void setSenderCompId(byte [] buffer, int offset, int length) {
+    public void setSenderCompId(byte[] buffer, int offset, int length) {
         senderCompID.set(buffer, offset, length);
     }
 
@@ -19,7 +19,7 @@ public class SessionIDByteReferences extends SessionID {
         return senderCompID;
     }
 
-    public void setSenderSubId(byte [] buffer, int offset, int length) {
+    public void setSenderSubId(byte[] buffer, int offset, int length) {
         senderSubID.set(buffer, offset, length);
     }
 
@@ -28,7 +28,7 @@ public class SessionIDByteReferences extends SessionID {
         return senderSubID;
     }
 
-    public void setTargetCompId(byte [] buffer, int offset, int length) {
+    public void setTargetCompId(byte[] buffer, int offset, int length) {
         targetCompID.set(buffer, offset, length);
     }
 
@@ -37,7 +37,7 @@ public class SessionIDByteReferences extends SessionID {
         return targetCompID;
     }
 
-    public void setTargetSubId(byte [] buffer, int offset, int length) {
+    public void setTargetSubId(byte[] buffer, int offset, int length) {
         targetSubID.set(buffer, offset, length);
     }
 
@@ -51,6 +51,11 @@ public class SessionIDByteReferences extends SessionID {
         senderSubID.clear();
         targetCompID.clear();
         targetSubID.clear();
+    }
+
+    @Override
+    public String toString() {
+        return senderCompID.toString() + '-' + targetCompID.toString();
     }
 
 }

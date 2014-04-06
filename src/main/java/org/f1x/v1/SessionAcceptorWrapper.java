@@ -1,5 +1,6 @@
 package org.f1x.v1;
 
+import org.f1x.api.FixParserException;
 import org.f1x.api.session.FailedLockException;
 import org.f1x.api.session.SessionManager;
 import org.f1x.api.session.SessionState;
@@ -10,6 +11,7 @@ import org.gflogger.GFLogFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 abstract class SessionAcceptorWrapper implements Runnable {
 
@@ -39,10 +41,28 @@ abstract class SessionAcceptorWrapper implements Runnable {
     public void run() {
         try {
             int logonLength = waitLogon();
-            if (logonLength > 0)
-                startAcceptor(logonLength);
-            else
-                close(socket);
+            startAcceptor(logonLength);
+        } catch (SocketTimeoutException e) {
+            LOGGER.warn().append("Error occurred during starting acceptor. Logon timeout expired").commit();
+            close(socket);
+        } catch (ConnectionProblemException e) {
+            LOGGER.warn().append("Error occurred during starting acceptor: ").append(e.getMessage()).commit();
+            close(socket);
+        } catch (FixParserException e) {
+            LOGGER.warn().append("Error occurred during starting acceptor. Invalid logon message: ").append(e.getMessage()).commit();
+            close(socket);
+        } catch (FailedLockException e) {
+            LOGGER.info()
+                    .append("Error occurred during starting acceptor. Failed to lock session id: ").append(e.getMessage())
+                    .append(" (Sender Comp ID: ").append(sessionID.getSenderCompId())
+                    .append(", Sender Sub ID: ").append(sessionID.getSenderSubId())
+                    .append(", Target Comp ID: ").append(sessionID.getTargetCompId())
+                    .append(", Target Sub ID: ").append(sessionID.getTargetSubId())
+                    .append(")").commit();
+            close(socket);
+        } catch (IOException e) {
+            LOGGER.warn().append("Error occurred during starting acceptor: ").append(e).commit();
+            close(socket);
         } finally {
             sessionID.clear();
             socket = null;
@@ -52,77 +72,50 @@ abstract class SessionAcceptorWrapper implements Runnable {
 
     abstract void onStop();
 
-    private void startAcceptor(int logonLength) {
+    private void startAcceptor(int logonLength) throws IOException, FailedLockException {
+        SessionState state = manager.lock(sessionID, acceptor); // TODO: use session state
         try {
-            SessionState state = manager.lock(sessionID, acceptor); // TODO: use session state
-            try {
-                acceptor.connect(socket, sessionID);
-                acceptor.run(logonBuffer, logonLength);
-            } catch (IOException e) {
-                LOGGER.warn().append("Closing socket. Error connecting: ").append(e).commit();
-                close(socket);
-            } finally {
-                manager.unlock(sessionID);
-            }
-        } catch (FailedLockException e) {
-            LOGGER.info().append("Someone wants to initiate session. Failed lock session id: ").append(e.getMessage()).append(". Closing socket").commit(); // TODO: log session id
-            close(socket);
+            acceptor.connect(socket, sessionID);
+            acceptor.run(logonBuffer, logonLength);
+        } finally {
+            manager.unlock(sessionID);
         }
     }
 
-    /**
-     * @return the logon length if session id was extracted from first message otherwise -1
-     */
-    private int waitLogon() {
-        try {
-            int oldSoTimeout = socket.getSoTimeout();
-            socket.setSoTimeout(logonTimeout);
+    private int waitLogon() throws IOException, ConnectionProblemException, FixParserException {
+        int oldSoTimeout = socket.getSoTimeout();
+        socket.setSoTimeout(logonTimeout);
 
-            int logonLength = extractSessionID();
-            socket.setSoTimeout(oldSoTimeout);
-            return logonLength;
-        } catch (IOException e) {
-            LOGGER.debug().append("During receiving logon error occurred: ").append(e).commit();
-            return -1;
-        }
+        int logonLength = extractSessionID();
+        socket.setSoTimeout(oldSoTimeout);
+        return logonLength;
     }
 
-    private int extractSessionID() throws IOException {
+    private int extractSessionID() throws IOException, ConnectionProblemException {
         InputStream in = socket.getInputStream();
 
-        int result = -1;
         int logonLength = 0;
         int requiredLogonLength = SimpleMessageScanner.MIN_MESSAGE_LENGTH;
         boolean continueExtraction = true;
         while (continueExtraction) {
             int bytesRead = in.read(logonBuffer, logonLength, logonBuffer.length - logonLength);
-            if (bytesRead == -1) {
-                LOGGER.debug().append("Disconnected (no more data).").commit();
-                break;
-            }
+            if (bytesRead <= 0)
+                throw ConnectionProblemException.NO_SOCKET_DATA;
 
             logonLength += bytesRead;
             if (logonLength >= requiredLogonLength) {
-                try {
-                    int parsingResult = SessionIDParser.parse(logonBuffer, 0, logonLength, sessionID);
-                    if (parsingResult > 0) {
-                        result = logonLength;
-                        continueExtraction = false;
-                    } else {
-                        requiredLogonLength = parsingResult + logonLength;
-                        if (requiredLogonLength > logonBuffer.length) {
-                            LOGGER.warn().append("Required logon length greater than logon buffer length").commit();
-                            continueExtraction = false;
-                        }
-                    }
-                } catch (SimpleMessageScanner.MessageFormatException e) {
-                    LOGGER.warn().append("Invalid logon message: ").append(e.getMessage()).commit();
+                int parsingResult = SessionIDParser.parse(logonBuffer, 0, logonLength, sessionID);
+                if (parsingResult > 0) {
                     continueExtraction = false;
+                } else {
+                    requiredLogonLength = logonLength - parsingResult;
+                    if (requiredLogonLength > logonBuffer.length)
+                        throw LogonMessageIsTooLongException.INSTANCE;
                 }
             }
         }
 
-        return result;
+        return logonLength;
     }
 
     public void setSocket(Socket socket) {
@@ -143,6 +136,21 @@ abstract class SessionAcceptorWrapper implements Runnable {
 
     void close() {
         acceptor.close();
+    }
+
+    private static class LogonMessageIsTooLongException extends FixParserException {
+
+        private static final LogonMessageIsTooLongException INSTANCE = new LogonMessageIsTooLongException("Logon message length is more than logon buffer length");
+
+        private LogonMessageIsTooLongException(String message) {
+            super(message);
+        }
+
+        @Override
+        public Throwable fillInStackTrace() {
+            return null;
+        }
+
     }
 
 }
