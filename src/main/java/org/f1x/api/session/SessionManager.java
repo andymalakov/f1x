@@ -1,16 +1,3 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.f1x.api.session;
 
 import org.f1x.v1.FixSessionAcceptor;
@@ -18,48 +5,45 @@ import org.f1x.v1.FixSessionAcceptor;
 import java.net.Socket;
 
 /**
- * Used by Session Acceptor. Manages inbound session.
+ * Manages inbound session. Must be thread safe.
  */
 public interface SessionManager {
 
     /**
-     * Accepts a socket.
-     *
-     * @param socket socket
-     * @return true if this socket was accepted otherwise false
-     */
-    boolean accept(Socket socket);
-
-    /**
-     * Adds session id to list of allowed session ids.
+     * Adds session id and session state.
      *
      * @param sessionID session id
      */
-    void add(SessionID sessionID);
+    void add(SessionID sessionID, SessionState state);
 
     /**
-     * Removes session id from list of allowed session ids.
+     * Removes session id and session state.
      *
      * @param sessionID
      */
     void remove(SessionID sessionID);
 
     /**
-     * Locks given sessionID.
-     *
-     * @return errorCode if session id was not locked otherwise null
+     * Locks session id.
+     * @param sessionID
+     * @return session state if it is found by session id and it is not used by another session acceptor
+     * @throws FailedLockException if unable to lock
      */
-    String lock(SessionID sessionID, FixSessionAcceptor acceptor);
+    SessionState lock(SessionID sessionID, FixSessionAcceptor acceptor) throws FailedLockException;
 
     /**
-     * Unlocks given sessionID.
+     * Unlocks session id.
+     * @param sessionID
      */
-    void unlock(SessionID sessionID, FixSessionAcceptor acceptor);
-
+    void unlock(SessionID sessionID);
 
     /**
-     * Closes session manager.
+     * Gets session acceptor by session id.
+     * @param sessionID
+     * @return session acceptor if it is found by session id otherwise null
      */
-    void close();
+    FixSessionAcceptor getSessionAcceptor(SessionID sessionID);
+
+    int getMaxManagedSessions();
 
 }

@@ -53,6 +53,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
     @Override
     public final void run() {
+        super.run();
         assertSessionStatus(SessionStatus.SocketConnected);
         try {
             processInboundMessages();
@@ -60,6 +61,29 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
             LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
         }
         assertSessionStatus(SessionStatus.Disconnected);
+    }
+
+
+    // Mockito does not mock final methods.
+    public void run(byte [] logonBuffer, int length) {
+        super.run();
+        if (logonBuffer == null)
+            throw new NullPointerException("logonBuffer == null");
+        if (length < 0 || logonBuffer.length < length)
+            throw new IllegalArgumentException("length < 0 || logonBuffer.length < length");
+
+        assertSessionStatus(SessionStatus.SocketConnected);
+        try {
+            processInboundMessages(logonBuffer, length);
+        } catch (Throwable e) {
+            LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
+        }
+        assertSessionStatus(SessionStatus.Disconnected);
+    }
+
+    @Override
+    public FixAcceptorSettings getSettings() {
+        return (FixAcceptorSettings) super.getSettings();
     }
 
     //TODO: What ensures that LOGON message is the first message we process?

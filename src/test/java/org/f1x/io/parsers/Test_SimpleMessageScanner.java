@@ -142,7 +142,7 @@ public class Test_SimpleMessageScanner {
     private void assertMessageTruncated(String message, int expectedMissingByteCount) {
         int actualMissingByteCount = parse(message);
         Assert.assertTrue("Parser didn't detect that message is truncated", actualMissingByteCount < 0);
-        Assert.assertEquals("Trucated message tail size", expectedMissingByteCount, -actualMissingByteCount);
+        Assert.assertEquals("Truncated message tail size", expectedMissingByteCount, -actualMissingByteCount);
     }
 
     private void assertMessageEnd(String message, int expectedByteCount) {
@@ -188,7 +188,7 @@ public class Test_SimpleMessageScanner {
         Assert.assertEquals(extractedTags, sb.toString());
     }
 
-    private int parse(String message) throws SimpleMessageScanner.LogonParserException {
+    private int parse(String message) throws SimpleMessageScanner.MessageFormatException {
         byte [] msgBytes = AsciiUtils.getBytes(message.replace('|', '\u0001'));
         int result = scanner.parse(wrap(message, WRAPPER), WRAPPER, msgBytes.length, null);
         if (result >= 0) {
@@ -210,7 +210,7 @@ public class Test_SimpleMessageScanner {
         }
 
         @Override
-        public int parse(byte[] buffer, int start, int len, Object cookie) throws LogonParserException {
+        public int parse(byte[] buffer, int start, int len, Object cookie) throws MessageFormatException {
             //tagsLeft = tagsToWatch.length;
             Arrays.fill(tagValueStart, -1);
             Arrays.fill(tagValueLen, -1);

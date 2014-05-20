@@ -14,4 +14,13 @@
 package org.f1x.api.session;
 
 public interface SessionState {
+
+    long getLastLogonTimestamp();
+
+    int getSenderSeqNum();
+
+    int getTargetSeqNum();
+
+    SessionStatus getSessionStatus();
+
 }

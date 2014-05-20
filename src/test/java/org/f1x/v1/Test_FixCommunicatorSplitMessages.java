@@ -40,6 +40,7 @@ public class Test_FixCommunicatorSplitMessages {
 
         public MessageCollectingTestFixCommunicator() {
             super(new SessionIDBean("CLIENT", "SERVER"), StoredTimeSource.makeFromUTCTimestamp("20140101-10:10:10.100"));
+            active = true;
         }
 
         @Override
