@@ -24,6 +24,7 @@ import org.f1x.api.message.fields.*;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
 import org.f1x.v1.FixSessionInitiator;
+import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,23 +32,24 @@ import java.util.concurrent.TimeUnit;
 
 public class LatencyTestClient extends FixSessionInitiator {
     private static final long BASE_NANOTIME = System.nanoTime();
-//    static {
-//        try {
-//            XmlLogFactoryConfigurator.configure("/config/gflogger.xml");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
+
     private final MessageBuilder mb;
     private final int intervalBetweenMessagesInNanos;
     private int orderCounter = 0;
 
+    private final int [] LATENCIES;
+    private int signalsReceived = -500; // warmup
+
+
     /**
      * @param messageRate messages per second
      */
-    public LatencyTestClient(String host, int port, SessionID sessionID, int messageRate) {
+    public LatencyTestClient(String host, int port, SessionID sessionID, int messageRate, int count) {
         super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings());
 
+        LOGGER.info().append("Message rate: ").append(messageRate).append(" msg/sec").commit();
+
+        LATENCIES = new int [count];
         mb = createMessageBuilder();
 
         intervalBetweenMessagesInNanos = (int) TimeUnit.SECONDS.toNanos(1) / messageRate;
@@ -57,20 +59,47 @@ public class LatencyTestClient extends FixSessionInitiator {
     public void sendMessage () throws IOException {
         assert getSessionStatus() == SessionStatus.ApplicationConnected;
         mb.clear();
-        mb.setMessageType(MsgType.ORDER_SINGLE);
-        mb.add(1, getMicrosecondClock()); // timestamp of signal creation
-        mb.add(FixTags.ClOrdID, ++orderCounter);
-        mb.add(FixTags.HandlInst, HandlInst.AUTOMATED_EXECUTION_ORDER_PRIVATE);
-        mb.add(FixTags.OrderQty, 1);
-        mb.add(FixTags.OrdType, OrdType.LIMIT);
-        mb.add(FixTags.Price, 1.43);
-        mb.add(FixTags.Side, Side.BUY);
+//        mb.setMessageType(MsgType.ORDER_SINGLE);
+//        mb.add(1, getMicrosecondClock()); // timestamp of signal creation
+//        mb.add(FixTags.ClOrdID, ++orderCounter);
+//        mb.add(FixTags.HandlInst, HandlInst.AUTOMATED_EXECUTION_ORDER_PRIVATE);
+//        mb.add(FixTags.OrderQty, 1);
+//        mb.add(FixTags.OrdType, OrdType.LIMIT);
+//        mb.add(FixTags.Price, 1.43);
+//        mb.add(FixTags.Side, Side.BUY);
+//        mb.add(FixTags.Symbol, "EUR/USD");
+//        mb.add(FixTags.SecurityType, SecurityType.FOREIGN_EXCHANGE_CONTRACT);
+//        mb.add(FixTags.TimeInForce, TimeInForce.DAY);
+//        mb.add(76, "MARKET-FEED-SIM");
+//        mb.add(FixTags.ExDestination, "#CANCEL-AFTER-OPEN");
+//        mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
+
+        final int ORDER_BOOK_DEPTH = 4;
+        mb.clear();
+        mb.setMessageType(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH);
         mb.add(FixTags.Symbol, "EUR/USD");
-        mb.add(FixTags.SecurityType, SecurityType.FOREIGN_EXCHANGE_CONTRACT);
-        mb.add(FixTags.TimeInForce, TimeInForce.DAY);
-        mb.add(76, "MARKET-FEED-SIM");
-        mb.add(FixTags.ExDestination, "#CANCEL-AFTER-OPEN");
-        mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
+        mb.add(FixTags.MDReqID, "dummyRequestId");
+        mb.add(8888, getMicrosecondClock());
+
+        mb.add(FixTags.NoMDEntries, 2*ORDER_BOOK_DEPTH);
+
+        for (int i = 0; i < ORDER_BOOK_DEPTH; i++) {
+            mb.add(FixTags.MDEntryType, MDEntryType.BID);
+            mb.add(FixTags.MDEntryPx, 1.35);
+            mb.add(FixTags.Currency, "EUR");
+            mb.add(FixTags.MDEntrySize, 10000);
+            mb.add(FixTags.QuoteCondition, "A");
+            mb.add(FixTags.MDEntryOriginator, "Originator");
+            mb.add(FixTags.QuoteEntryID, "BID1");
+
+            mb.add(FixTags.MDEntryType, MDEntryType.OFFER);
+            mb.add(FixTags.MDEntryPx, 0.74);
+            mb.add(FixTags.Currency, "EUR");
+            mb.add(FixTags.MDEntrySize, 15000);
+            mb.add(FixTags.QuoteCondition, "A");
+            mb.add(FixTags.MDEntryOriginator, "Originator");
+            mb.add(FixTags.QuoteEntryID, "OFFER1");
+        }
 
         send(mb);
     }
@@ -111,10 +140,10 @@ public class LatencyTestClient extends FixSessionInitiator {
 
     @Override
     protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
-        if (Tools.equals(MsgType.ORDER_SINGLE, msgType)) {
+        if (Tools.equals(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH, msgType)) {
             while(parser.next()) {
-                if (parser.getTagNum() == FixTags.Account) {
-                    recordLatency(parser.getIntValue());
+                if (parser.getTagNum() == 8888) {
+                    recordLatency(parser.getIntValue());  // stored as getMicrosecondClock()
                     break;
                 }
             }
@@ -123,40 +152,54 @@ public class LatencyTestClient extends FixSessionInitiator {
         }
     }
 
-    private final int [] LATENCIES = new int [100000000];
-    private int signalsReceived;
 
     private void recordLatency(int signalCreation) {
         int signalLatency = getMicrosecondClock() - signalCreation;
-        if (signalsReceived < LATENCIES.length) {
-            LATENCIES[signalsReceived] = signalLatency;
-            if (++signalsReceived == LATENCIES.length) {
-                System.out.println("DONE!");
+        ++signalsReceived;
 
-                Arrays.sort(LATENCIES);
-
-
-                System.out.println("MIN: " + LATENCIES[0]);
-                System.out.println("MAX: " + LATENCIES[LATENCIES.length -1]);
-                System.out.println("MEDIAN:" + LATENCIES[LATENCIES.length / 2]);
-                System.out.println("MEDIAN: " + LATENCIES[LATENCIES.length/2]);
-
-                System.out.println("99.000%:  " + LATENCIES[ (int)   (99L*LATENCIES.length/100)]);
-                System.out.println("99.900%:  " + LATENCIES[ (int)  (999L*LATENCIES.length/1000)]);
-                System.out.println("99.990%:  " + LATENCIES[ (int) (9999L*LATENCIES.length/10000)]);
-                System.out.println("99.999%:  " + LATENCIES[ (int)(99999L*LATENCIES.length/100000)]);
-                System.out.println("99.9999%: " + LATENCIES[ (int)(999999L*LATENCIES.length/1000000)]);
-
-                
-                System.exit(0);
+        if (signalsReceived >= 0) {
+            if (signalsReceived < LATENCIES.length) {
+                LATENCIES[signalsReceived] = signalLatency;
+            } else
+            if (signalsReceived == LATENCIES.length) {
+                printStats();
             }
         }
     }
 
+    private void printStats() {
+        System.out.println("Experiment complete. Preparing stats...");
+
+        Arrays.sort(LATENCIES);
+
+        System.out.println("MIN: " + LATENCIES[0]);
+        System.out.println("MAX: " + LATENCIES[LATENCIES.length -1]);
+        System.out.println("MEDIAN:" + LATENCIES[LATENCIES.length / 2]);
+        System.out.println("MEDIAN: " + LATENCIES[LATENCIES.length/2]);
+
+        System.out.println("99.000%:  " + LATENCIES[ (int)   (99L*LATENCIES.length/100)]);
+        System.out.println("99.900%:  " + LATENCIES[ (int)  (999L*LATENCIES.length/1000)]);
+        System.out.println("99.990%:  " + LATENCIES[ (int) (9999L*LATENCIES.length/10000)]);
+        System.out.println("99.999%:  " + LATENCIES[ (int)(99999L*LATENCIES.length/100000)]);
+        System.out.println("99.9999%: " + LATENCIES[ (int)(999999L*LATENCIES.length/1000000)]);
+        System.out.println("99.99999%:" + LATENCIES[ (int)(9999999L*LATENCIES.length/10000000)]);
+
+        close();
+        System.exit(0);
+    }
+
     public static void main (String [] args) throws InterruptedException, IOException {
+        try {
+            XmlLogFactoryConfigurator.configure("/config/gflogger.xml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         String host =args[0];
         int port = Integer.parseInt(args[1]);
-        final LatencyTestClient client = new LatencyTestClient(host, port, new SessionIDBean("CLIENT", "SERVER"), 1000);
+        int rate = args.length > 2 ? Integer.parseInt(args[2]) : 1000;
+        int count = args.length > 3 ? Integer.parseInt(args[3]) : 1000000;
+        final LatencyTestClient client = new LatencyTestClient(host, port, new SessionIDBean("CLIENT", "SERVER"), rate, count);
         final Thread acceptorThread = new Thread(client, "EchoClient");
         acceptorThread.start();
 
