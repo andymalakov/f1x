@@ -29,6 +29,7 @@ import java.io.IOException;
 
 public class FixClientSample {
     public static void main (String [] args) {
+        sample3();
     }
 
     public static void sample1() {
