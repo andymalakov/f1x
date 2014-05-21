@@ -16,19 +16,17 @@ package org.f1x.v1;
 
 import org.f1x.api.FixSettings;
 import org.f1x.api.message.fields.SessionRejectReason;
-import org.f1x.api.session.FixSession;
+import org.f1x.api.session.*;
 import org.f1x.api.message.fields.EncryptMethod;
-import org.f1x.api.session.SessionStatus;
 import org.f1x.util.TimeSource;
+import org.f1x.v1.state.MemorySessionState;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 import org.f1x.api.FixVersion;
-import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.message.fields.MsgType;
-import org.f1x.api.session.SessionEventListener;
 import org.f1x.io.InputChannel;
 import org.f1x.io.LoggingOutputChannel;
 import org.f1x.io.OutputChannel;
@@ -56,7 +54,7 @@ public abstract class FixCommunicator implements FixSession {
     private final FixSettings settings;
     private MessageLogFactory messageLogFactory;
     private MessageLog messageLog;
-
+    protected SessionState sessionState;
 
     // Defined during initialization
     private InputChannel in;
@@ -65,7 +63,6 @@ public abstract class FixCommunicator implements FixSession {
 
     private SessionStatus status = SessionStatus.Disconnected;
     protected volatile boolean active; // close() sets this to false
-    private final SequenceNumbers seqNum = new SequenceNumbers(); // hidden for thread-safety reasons
 
     // used by receiver thread only
     private final DefaultMessageParser parser = new DefaultMessageParser();
@@ -99,11 +96,6 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     @Override
-    public void run() {
-        active = true;
-    }
-
-    @Override
     public MessageBuilder createMessageBuilder() {
         return new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
     }
@@ -128,6 +120,10 @@ public abstract class FixCommunicator implements FixSession {
 
     public void setMessageLogFactory(MessageLogFactory messageLogFactory) {
         this.messageLogFactory = messageLogFactory;
+    }
+
+    public void setSessionState(SessionState sessionState){
+        this.sessionState = sessionState;
     }
 
     protected void setSessionStatus(SessionStatus status) {
@@ -156,6 +152,8 @@ public abstract class FixCommunicator implements FixSession {
 
     public void connect(InputChannel in, OutputChannel out) {
         this.messageLog = (messageLogFactory != null) ? messageLogFactory.create(getSessionID()) : null;
+        if(sessionState == null)
+            sessionState = new MemorySessionState();
 
         this.in = in;
         this.out = (messageLog != null) ? new LoggingOutputChannel(messageLog, out) : out;
@@ -308,7 +306,7 @@ public abstract class FixCommunicator implements FixSession {
 
     @Override
     public void send(MessageBuilder messageBuilder) throws IOException {
-        send(messageBuilder, seqNum.consumeOutbound()); //TODO: Not thread safe!!!
+        send(messageBuilder, sessionState.consumeNextSenderSeqNum()); //TODO: Not thread safe!!!
     }
 
     private void send(MessageBuilder messageBuilder, int msgSeqNum) throws IOException {
@@ -322,7 +320,7 @@ public abstract class FixCommunicator implements FixSession {
             resetSequenceNumbers = settings.isResetSequenceNumbersOnEachLogon();
 
         if (resetSequenceNumbers) {
-            seqNum.reset(); //TODO: Not-thread-safe: may happen in parallel with another send()
+            sessionState.resetNextSeqNums(); //TODO: Not-thread-safe: may happen in parallel with another send()
         }
 
         synchronized (sessionMessageBuilder) {
@@ -333,7 +331,7 @@ public abstract class FixCommunicator implements FixSession {
             sessionMessageBuilder.add(FixTags.ResetSeqNumFlag, resetSequenceNumbers);
 
             if (settings.isLogonWithNextExpectedMsgSeqNum()) {
-                sessionMessageBuilder.add(FixTags.NextExpectedMsgSeqNum, seqNum.getNextInbound());
+                sessionMessageBuilder.add(FixTags.NextExpectedMsgSeqNum, sessionState.getNextTargetSeqNum());
             }
             sessionMessageBuilder.add(FixTags.MaxMessageSize, settings.getMaxInboundMessageSize());
             send(sessionMessageBuilder);
@@ -436,7 +434,7 @@ public abstract class FixCommunicator implements FixSession {
             sessionMessageBuilder.setMessageType(MsgType.SEQUENCE_RESET);
 
             if (endSeqNo == 0)
-                endSeqNo = seqNum.consumeOutbound();
+                endSeqNo = sessionState.consumeNextSenderSeqNum();
 
             sessionMessageBuilder.add(FixTags.PossDupFlag, true);
             sessionMessageBuilder.add(FixTags.NewSeqNo, endSeqNo);
@@ -700,7 +698,7 @@ public abstract class FixCommunicator implements FixSession {
                 // Gap Fill mode: nothing to do since we are not placing any 'future' messages in the queue
             } else {
                 // Reset mode
-                seqNum.resetInbound(newSeqNum);
+                sessionState.resetNextTargetSeqNum(newSeqNum);
             }
         } catch (InvalidFixMessageException e) {
             sendReject(msgSeqNum, SessionRejectReason.INCORRECT_DATA_FORMAT_FOR_VALUE, e.getMessage());

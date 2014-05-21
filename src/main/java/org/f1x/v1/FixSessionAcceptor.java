@@ -53,7 +53,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
     @Override
     public final void run() {
-        super.run();
+        active = true;
         assertSessionStatus(SessionStatus.SocketConnected);
         try {
             processInboundMessages();
@@ -66,7 +66,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
     // Mockito does not mock final methods.
     public void run(byte [] logonBuffer, int length) {
-        super.run();
+        active = true;
         if (logonBuffer == null)
             throw new NullPointerException("logonBuffer == null");
         if (length < 0 || logonBuffer.length < length)

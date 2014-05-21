@@ -14,7 +14,7 @@
 
 package org.f1x.v1;
 
-final class InvalidFixMessageException extends Exception {
+public final class InvalidFixMessageException extends Exception {
 
     static final InvalidFixMessageException EMPTY_MESSAGE = new InvalidFixMessageException ("Message has no data");
     static final InvalidFixMessageException BAD_FIRST_TAG = new InvalidFixMessageException ("Message does not begin with BeginString(8) tag.");
@@ -23,7 +23,7 @@ final class InvalidFixMessageException extends Exception {
     static final InvalidFixMessageException BAD_BODY_LENGTH = new InvalidFixMessageException ("Message BodyLength(9) is invalid");
     static final InvalidFixMessageException MISSING_MSG_TYPE = new InvalidFixMessageException ("Message has no MsgType(35) tag");
     static final InvalidFixMessageException MESSAGE_TOO_LARGE = new InvalidFixMessageException ("Message is too large");
-    static final InvalidFixMessageException RESET_BELOW_CURRENT_SEQ_LARGE = new InvalidFixMessageException ("SequenceReset can only increase the sequence number");
+    public static final InvalidFixMessageException RESET_BELOW_CURRENT_SEQ_LARGE = new InvalidFixMessageException ("SequenceReset can only increase the sequence number");
     static final InvalidFixMessageException EXPECTING_LOGON_MESSAGE = new InvalidFixMessageException ("Application-level connection is not yet established (Unfinished LOGON)");
 
     private InvalidFixMessageException (String message) {

@@ -54,7 +54,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
     @Override
     public void run() {
-        super.run();
+        active = true;
         boolean needPause = false;
         try {
             while (active) {

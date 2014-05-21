@@ -73,8 +73,9 @@ abstract class SessionAcceptorWrapper implements Runnable {
     abstract void onStop();
 
     private void startAcceptor(int logonLength) throws IOException, FailedLockException {
-        SessionState state = manager.lock(sessionID, acceptor); // TODO: use session state
+        SessionState state = manager.lock(sessionID, acceptor);
         try {
+            acceptor.setSessionState(state);
             acceptor.connect(socket, sessionID);
             acceptor.run(logonBuffer, logonLength);
         } finally {

@@ -59,6 +59,5 @@ class TestFixCommunicator extends FixCommunicator {
 
     @Override
     public void run() {
-        super.run();
     }
 }

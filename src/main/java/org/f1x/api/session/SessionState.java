@@ -13,14 +13,36 @@
  */
 package org.f1x.api.session;
 
+import org.f1x.v1.InvalidFixMessageException;
+
+/**
+ * Session state that requires persistence.
+ */
 public interface SessionState {
 
+    void setLastLogonTimestamp(long newValue);
+
+    /**
+     * @return last logon timestamp or -1 if unknown
+     */
     long getLastLogonTimestamp();
 
-    int getSenderSeqNum();
 
-    int getTargetSeqNum();
+    void setNextSenderSeqNum(int newValue);
 
-    SessionStatus getSessionStatus();
+    int getNextSenderSeqNum();
+
+    int consumeNextSenderSeqNum();
+
+
+    void setNextTargetSeqNum(int newValue);
+
+    int getNextTargetSeqNum();
+
+    int consumeNextTargetSeqNum();
+
+    void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException;
+
+    void resetNextSeqNums();
 
 }
