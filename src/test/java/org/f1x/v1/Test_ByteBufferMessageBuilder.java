@@ -42,12 +42,15 @@ public class Test_ByteBufferMessageBuilder {
         mb.addUTCTimestamp(12, TestUtils.parseUTCTimestamp("20121009-13:44:49.421"));
         mb.addUTCDateOnly(13, TestUtils.parseUTCTimestamp("20121009-00:00:00.000"));
         mb.addUTCTimeOnly(14, TestUtils.parseUTCTimestamp("20121009-13:44:49.421"));
-        mb.addLocalMktDate(15, TestUtils.parseUTCTimestamp("20121009-00:00:00.000"));
+        String utcTimestampForMktDate = "20121009-00:00:00.000";
+        mb.addLocalMktDate(15, TestUtils.parseUTCTimestamp(utcTimestampForMktDate));
         byte [] rawField = "RAW".getBytes();
         mb.addRaw(16, rawField, 0, rawField.length);
         mb.add(17).append((byte)'A').append('B').append("CD").append("**EF**", 2, 4).append(123).append(456L).append(.001).end();
 
-        assertContentEquals("1=ABC|2=B|3=123|4=123|5=3.142|6=x|7=Y|8=N|9=1|10=3|11=B|12=20121009-13:44:49.421|13=20121009|14=13:44:49.421|15=20121008|16=RAW|17=ABCDEF1234560.001|");
+        assertContentEquals("1=ABC|2=B|3=123|4=123|5=3.142|6=x|7=Y|8=N|9=1|10=3|11=B|12=20121009-13:44:49.421|13=20121009|14=13:44:49.421|15=" +
+                getMktDateFromUTCTimestamp(utcTimestampForMktDate) +
+                "|16=RAW|17=ABCDEF1234560.001|");
     }
 
     @Test
@@ -100,4 +103,10 @@ public class Test_ByteBufferMessageBuilder {
         String actual = new String(buffer).replace('\u0001', '|');
         Assert.assertEquals(expected, actual);
     }
+
+    private String getMktDateFromUTCTimestamp(String utc) {
+        long utcTimeInMillis = TestUtils.parseUTCTimestamp(utc);
+        return TestUtils.LOCAL_TIMESTAMP_FORMAT.format(utcTimeInMillis).substring(0, 8);
+    }
+
 }
