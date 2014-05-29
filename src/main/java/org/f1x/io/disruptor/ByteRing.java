@@ -103,7 +103,7 @@ public final class ByteRing {
         sequencer.addGatingSequences(gatingSequences);
     }
 
-
+    /** Writes single byte specified by value parameter and advances offset */
     int write (int offset, int value) {
         assert offset >=0 && offset < bufferSize;
         entries[offset++] = (byte) (0xFF & value);
