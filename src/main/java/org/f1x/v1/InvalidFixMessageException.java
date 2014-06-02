@@ -16,6 +16,7 @@ package org.f1x.v1;
 
 public final class InvalidFixMessageException extends Exception {
 
+    public static final InvalidFixMessageException TARGET_MSG_SEQ_NUM_LESS_EXPECTED = new InvalidFixMessageException("Target message sequence number is less expected");
     static final InvalidFixMessageException EMPTY_MESSAGE = new InvalidFixMessageException ("Message has no data");
     static final InvalidFixMessageException BAD_FIRST_TAG = new InvalidFixMessageException ("Message does not begin with BeginString(8) tag.");
     static final InvalidFixMessageException INVALID_BEGIN_STRING = new InvalidFixMessageException ("Message tag BeginString(8) has unexpected value. Wrong FIX version?");
@@ -25,6 +26,10 @@ public final class InvalidFixMessageException extends Exception {
     static final InvalidFixMessageException MESSAGE_TOO_LARGE = new InvalidFixMessageException ("Message is too large");
     public static final InvalidFixMessageException RESET_BELOW_CURRENT_SEQ_LARGE = new InvalidFixMessageException ("SequenceReset can only increase the sequence number");
     static final InvalidFixMessageException EXPECTING_LOGON_MESSAGE = new InvalidFixMessageException ("Application-level connection is not yet established (Unfinished LOGON)");
+    public static final InvalidFixMessageException NO_MSG_SEQ_NUM = new InvalidFixMessageException("No MsgSeqNum(34) in message");
+    public static final InvalidFixMessageException INVALID_MSG_SEQ_NUM = new InvalidFixMessageException("MsgSeqNum(34) is invalid");
+    public static final InvalidFixMessageException NO_HEARTBEAT_INTERVAL = new InvalidFixMessageException("No HeartBtInt(108)");
+    public static final InvalidFixMessageException IN_SESSION_LOGON_MESSAGE_WITHOUT_MSG_SEQ_RESET_NOT_EXPECTED = new InvalidFixMessageException("Logon message without message sequence reset is not expected");
 
     private InvalidFixMessageException (String message) {
         super(message);

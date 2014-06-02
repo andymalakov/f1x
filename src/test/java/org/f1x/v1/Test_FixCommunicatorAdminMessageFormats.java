@@ -44,7 +44,7 @@ public class Test_FixCommunicatorAdminMessageFormats {
 
     @Test
     public void testResendRequest() throws IOException {
-        fix.sendResendReq(1, 2);
+        fix.sendResendRequest(1, 2);
         assertFix("8=FIX.4.4|9=64|35=2|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|7=1|16=2|10=200|");
     }
 
@@ -57,7 +57,7 @@ public class Test_FixCommunicatorAdminMessageFormats {
     @Test
     public void testSeqReset() throws IOException {
         fix.sendSequenceReset(777);
-        assertFix("8=FIX.4.4|9=70|35=4|34=777|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|36=777|123=N|10=044|");
+        assertFix("8=FIX.4.4|9=70|35=4|34=776|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|36=777|123=N|10=043|");
     }
 
     @Test

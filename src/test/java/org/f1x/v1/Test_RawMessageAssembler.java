@@ -135,14 +135,14 @@ public class Test_RawMessageAssembler {
         mb.add(FixTags.TimeInForce, TimeInForce.DAY);
         mb.addUTCTimestamp(FixTags.SendingTime, sendingTime);
         mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
-        asm.send(sessionID, 78, mb, nul);
+        asm.send(sessionID, 78, mb, null, nul);
     }
 
 
     private static String format (MessageBuilder mb, SessionID sessionID, int msgSeqNum, String time) throws IOException {
         RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, StoredTimeSource.makeFromUTCTimestamp(time));
         TextOutputChannel text = new TextOutputChannel();
-        asm.send(sessionID, msgSeqNum, mb, text);
+        asm.send(sessionID, msgSeqNum, mb, null, text);
         return text.toString();
     }
 

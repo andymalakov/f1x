@@ -52,8 +52,8 @@ public class Test_SimpleMessageScanner {
         // now let's try various cases where buffer does not contain entire message
         assertMessageTruncated("8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080", 1); // missing final SOH
         assertMessageTruncated("8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|", 7); // missing CheckSum(10) field
-        assertMessageTruncated("8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|", 44); // missing everything starting from tag TargetCompID(56)
-        assertMessageTruncated("8=FIX.4.2|9=63|35=A|34=1|49=EZ", 55);
+        assertMessageTruncated("8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|51=  just for increasing   |", 16); // missing everything starting from tag TargetCompID(56)
+        assertMessageTruncated("8=FIX.4.2|9=63|35=A|34=1|49=EZ|51=     just for increasing     ", 22);
 
         assertScannerFailed("8=FIX.4.2|9=63", "Message is too small");
     }
@@ -77,7 +77,7 @@ public class Test_SimpleMessageScanner {
 
     @Test
     public void testNotAFixMessage () {
-        assertScannerFailed("I Don't know what is this but not a FIX message", "Not a FIX message");
+        assertScannerFailed("I Don't know what is this but not a FIX message. Just for increasing", "Not a FIX message");
     }
 
     @Test

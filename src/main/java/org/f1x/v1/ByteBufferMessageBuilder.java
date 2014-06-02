@@ -37,7 +37,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     private final TimestampFormatter localTimestampFormat = TimestampFormatter.createLocalTimestampFormatter();
     private final DoubleFormatter doubleFormatter;
 
-    private String msgType;
+    private CharSequence msgType;
     private final byte [] buffer;
     private int offset;
 
@@ -62,12 +62,12 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     }
 
     @Override
-    public void setMessageType(String msgType) {
+    public void setMessageType(CharSequence msgType) {
         this.msgType = msgType;
     }
 
     @Override
-    public String getMessageType() {
+    public CharSequence getMessageType() {
         return msgType;
     }
 

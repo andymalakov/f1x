@@ -25,7 +25,7 @@ import org.f1x.util.MutableByteSequence;
  * a) Fullfill RESEND requests (usually last N messages before disconnect)
  * b) Help process Reject/BusinessReject messages by retrieving previously sent messages that were rejected.
  */
-interface MessageStore {
+public interface MessageStore {
 
     /** Stores message with given sequence number from provided buffer */
     void put (int seqNum, byte [] message, int offset, int length);
