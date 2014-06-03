@@ -14,16 +14,12 @@
 
 package org.f1x.util;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 public class AsciiUtils {
 
-    public static byte [] getBytes(String asciiText) {
-        try {
-            return asciiText.getBytes("US-ASCII");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Expecting ASCII string", e);
-        }
+    public static byte[] getBytes(String asciiText) {
+        return asciiText.getBytes(StandardCharsets.US_ASCII);
     }
 
     public static boolean equals(byte[] array1, byte[] array2, int offset2, int length) {

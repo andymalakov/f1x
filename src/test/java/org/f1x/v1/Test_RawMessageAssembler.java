@@ -66,79 +66,6 @@ public class Test_RawMessageAssembler {
     }
 
 
-
-    private static final long sendingTime = System.currentTimeMillis();
-
-    // FIX8.ORG test
-    //    msg.getHeader().setField( FIX::BeginString( "FIX.4.4" ) );
-    //    msg.getHeader().setField( FIX::MsgType( FIX::MsgType_NewOrderSingle ) );
-    //    msg.getHeader().setField( FIX::MsgSeqNum(78));
-    //    msg.getHeader().setField(FIX::SenderCompID("A12345B"));
-    //    msg.getHeader().setField(FIX::SenderSubID("2DEFGH4"));
-    //    msg.getHeader().setField(FIX::SendingTime(FIX::UtcTimeStamp()));
-    //    msg.getHeader().setField(FIX::TargetCompID("COMPARO"));
-    //    msg.getHeader().setField(FIX::TargetSubID("G"));
-    //    msg.getHeader().setField(FIX::SenderLocationID("AU,SY"));
-    //
-    //    msg.setField( FIX::Account( "01234567") );
-    //    msg.setField( FIX::ClOrdID( "4" ) );
-    //    msg.setField( FIX::OrderQty( 50 ) );
-    //    msg.setField( FIX::OrdType( FIX::OrdType_LIMIT) );
-    //    msg.setField( FIX::Price( 400.5) );
-    //    msg.setField( FIX::HandlInst( '1' ) );
-    //    msg.setField( FIX::Symbol( "OC") );
-    //    msg.setField( FIX::Text( "NIGEL") );
-    //    msg.setField( FIX::Side( FIX::Side_BUY ) );
-    //    msg.setField( FIX::SecurityDesc( "AOZ3 C02000") );
-    //    msg.setField( FIX::TimeInForce( FIX::TimeInForce_DAY ) );
-    //    msg.setField( FIX::TransactTime() );
-    //    msg.setField( FIX::SecurityType( FIX::SecurityType_OPTION ) );
-
-    /** Similar to FIX8 encoding test */
-    @Test
-    public void testNewOrderSingleEncodingPerformance () throws Exception {
-
-        final MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
-        final RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, StoredTimeSource.makeFromUTCTimestamp("20121009-13:44:49.421"));
-        final SessionID sessionID = new SessionIDBean("A12345B", "2DEFGH4", "COMPARO", "G");
-        NullOutputChannel nul = new NullOutputChannel();
-
-
-        final int WARMUP = 20000, N = 500000;
-        for (int i =0; i < WARMUP; i++) {
-            encode(mb, asm, sessionID, nul);
-        }
-
-        long start = System.nanoTime();
-        for (int i =0; i < N; i++) {
-            encode(mb, asm, sessionID, nul);
-        }
-        long end = System.nanoTime();
-        System.out.println("Time " + (end-start)/N + " ns. per encoding, dummy result: " + nul.toString());
-    }
-
-    private void encode(MessageBuilder mb, RawMessageAssembler asm, SessionID sessionID, NullOutputChannel nul) throws IOException {
-        mb.clear();
-        mb.setMessageType("01234567");
-        mb.add(FixTags.Account, "AU,SY");
-        mb.add(FixTags.SenderLocationID, "AU,SY");
-        mb.add(FixTags.ClOrdID, 4);
-        mb.add(FixTags.HandlInst, HandlInst.AUTOMATED_EXECUTION_ORDER_PRIVATE);
-        mb.add(FixTags.OrderQty, 50);
-        mb.add(FixTags.OrdType, OrdType.LIMIT);
-        mb.add(FixTags.Price, 400.5);
-        mb.add(FixTags.Side, Side.BUY);
-        mb.add(FixTags.Symbol, "OC");
-        mb.add(FixTags.SecurityDesc, "AOZ3 C02000");
-        mb.add(FixTags.SecurityType, SecurityType.OPTION);
-        mb.add(FixTags.Text, "NIGEL");
-        mb.add(FixTags.TimeInForce, TimeInForce.DAY);
-        mb.addUTCTimestamp(FixTags.SendingTime, sendingTime);
-        mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
-        asm.send(sessionID, 78, mb, null, nul);
-    }
-
-
     private static String format (MessageBuilder mb, SessionID sessionID, int msgSeqNum, String time) throws IOException {
         RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, StoredTimeSource.makeFromUTCTimestamp(time));
         TextOutputChannel text = new TextOutputChannel();
@@ -166,21 +93,4 @@ public class Test_RawMessageAssembler {
         }
     }
 
-    private static class NullOutputChannel implements OutputChannel{
-        private int something;
-
-        @Override
-        public void write(byte[] buffer, int offset, int length) throws IOException {
-            this.something += length + offset + buffer.length; // just to trick optimizer
-        }
-
-        @Override
-        public void close() throws IOException {
-        }
-
-        @Override
-        public String toString() {
-            return "Something:" + something;
-        }
-    }
 }
