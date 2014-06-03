@@ -16,8 +16,8 @@ package org.f1x.api;
 import org.f1x.v1.SocketOptions;
 
 public class FixSettings extends SocketOptions {
-    private boolean logInboundMessages = false;
-    private boolean logOutboundMessages = false;
+//    private boolean logInboundMessages = false;
+//    private boolean logOutboundMessages = false;
 
     /** Max buffer size for outbound message assembler */
     private int maxOutboundMessageSize = 2048;
