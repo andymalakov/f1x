@@ -101,6 +101,12 @@
             <version>2.1</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.servicemix.bundles</groupId>
+            <artifactId>org.apache.servicemix.bundles.quickfix</artifactId>
+            <version>1.5.3_1</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Follow instructions above to install GFLogger into local repository
         <dependency>
             <groupId>org.gflogger</groupId>

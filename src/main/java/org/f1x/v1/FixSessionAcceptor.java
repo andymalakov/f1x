@@ -86,20 +86,4 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
         return (FixAcceptorSettings) super.getSettings();
     }
 
-    //TODO: What ensures that LOGON message is the first message we process?
-
-    /**
-     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
-     */
-    @Override
-    protected void processInboundLogon(boolean isSequenceNumberReset) throws IOException {
-
-        if (getSessionStatus() == SessionStatus.SocketConnected) {
-            setSessionStatus(SessionStatus.ReceivedLogon);
-            sendLogon(isSequenceNumberReset);
-            setSessionStatus(SessionStatus.ApplicationConnected);
-        } else {
-            LOGGER.info().append("Unexpected LOGON (In-session sequence reset?)");
-        }
-    }
 }

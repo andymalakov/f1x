@@ -17,14 +17,16 @@ package org.f1x.v1;
 import org.f1x.SessionIDBean;
 import org.f1x.api.message.MessageParser;
 import org.f1x.io.EmptyOutputChannel;
-import org.f1x.io.InputChannel;
 import org.f1x.io.OutputChannel;
 import org.f1x.util.AsciiUtils;
+import org.f1x.io.PredefinedInputChannel;
 import org.f1x.util.StoredTimeSource;
+import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +46,7 @@ public class Test_FixCommunicatorSplitMessages {
         }
 
         @Override
-        protected void processInboundMessage(MessageParser parser, CharSequence msgType) {
+        protected void processInboundMessage(MessageParser parser, CharSequence msgType, int msgSeqNum) {
             String message = MessageParser2String.convert(parser);
             parsedMessages.add(message.replace('\u0001', '|'));
         }
@@ -54,42 +56,79 @@ public class Test_FixCommunicatorSplitMessages {
             if (e == ConnectionProblemException.NO_SOCKET_DATA)
                 active = false;
             else
-                Assert.fail(errorText);
+               throw new RuntimeException(errorText + ": " + e.getMessage());
         }
+    }
+
+    @Rule
+    public final ExpectedException expectedException = ExpectedException.none();
+
+    @Test
+    public void testSingleMessageWithBufferLengthMoreMax() {
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage(CoreMatchers.equalTo("Protocol Error: Message is too large"));
+
+        String message = createMessageWithGivenLength(fix.getSettings().getMaxInboundMessageSize() + 1);
+        int halfOfMessage = message.length() / 2;
+        PredefinedInputChannel in = new PredefinedInputChannel(
+                message.substring(0, halfOfMessage),
+                message.substring(halfOfMessage)
+        );
+        fix.connect(in, out);
+        fix.processInboundMessages();
+    }
+
+    @Test
+    public void testSingleMessageWithoutMsgSeqNum(){
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage(CoreMatchers.equalTo("Protocol Error: No MsgSeqNum(34) in message"));
+
+        String message = "8=FIX.4.4|9=77|35=A|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|";
+        PredefinedInputChannel in = new PredefinedInputChannel (
+                message
+        );
+        fix.connect(in, out);
+        fix.processInboundMessages();
+        assertParsedMessages(message);
     }
 
     @Test
     public void testSingleMessage() {
+        String message = "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|";
         PredefinedInputChannel in = new PredefinedInputChannel (
-            "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|"
+                message
         );
         fix.connect(in, out);
         fix.processInboundMessages();
-        assertParsedMessages("34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|");
+        assertParsedMessages(message);
     }
 
     @Test
     public void testTwoMessages() {
+        String messageOne = "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|";
+        String messageTwo = "8=FIX.4.4|9=67|35=1|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|";
         PredefinedInputChannel in = new PredefinedInputChannel (
-            "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
-            "8=FIX.4.4|9=67|35=1|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
+                messageOne,
+                messageTwo
         );
         fix.connect(in, out);
         fix.processInboundMessages();
         assertParsedMessages(
-            "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
-            "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
+            messageOne,
+            messageTwo
         );
     }
 
     @Test
     public void testSplitSingleMessage() {
+        String messagePartOne = "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:1";
+        String messagePartTwo = "0:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|";
         PredefinedInputChannel in = new PredefinedInputChannel (
-            "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:1"  ,  "0:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|"
+                messagePartOne, messagePartTwo
         );
         fix.connect(in, out);
         fix.processInboundMessages();
-        assertParsedMessages("34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|");
+        assertParsedMessages(messagePartOne + messagePartTwo);
     }
 
     @Test
@@ -97,12 +136,12 @@ public class Test_FixCommunicatorSplitMessages {
         PredefinedInputChannel in = new PredefinedInputChannel (
             "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|8=FIX.4.4|",   // here we have beginning of the next message
             "9=67|35=1|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
-    );
+        );
         fix.connect(in, out);
         fix.processInboundMessages();
         assertParsedMessages(
-            "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
-            "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
+            "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
+            "8=FIX.4.4|9=67|35=1|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
         );
     }
 
@@ -115,8 +154,8 @@ public class Test_FixCommunicatorSplitMessages {
         fix.connect(in, out);
         fix.processInboundMessages();
         assertParsedMessages(
-                "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
-                "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|");
+                "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
+                "8=FIX.4.4|9=67|35=1|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|");
     }
 
     @Test
@@ -129,9 +168,26 @@ public class Test_FixCommunicatorSplitMessages {
         fix.connect(in, out);
         fix.processInboundMessages(AsciiUtils.getBytes(logonBuffer.replace('|', '\u0001')), logonBuffer.length());
         assertParsedMessages(
-            "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
-            "34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
+            "8=FIX.4.4|9=82|35=A|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|98=0|108=30|141=Y|383=8192|10=080|",
+            "8=FIX.4.4|9=67|35=1|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|112=TEST123|10=245|"
         );
+    }
+
+    private static String createMessageWithGivenLength(int length) {
+        String beginString = "8=FIX.4.4|";
+        String bodyLengthPattern = "9=??????????|";
+        String checkSum = "10=000|";
+        String msgType = "35=A|";
+        String msgSeqNum = "34=1|";
+
+        int neededBodyLength = length - (beginString.length() + bodyLengthPattern.length() + checkSum.length());
+        String bodyLength = String.format("9=%010d|", neededBodyLength);
+        int accountValueLength = neededBodyLength - (msgType.length() + msgSeqNum.length() + "1=|".length());
+        String account = "1=" + new String(new byte[accountValueLength]) + '|';
+        String message = beginString + bodyLength + msgType + msgSeqNum + account + checkSum;
+        Assert.assertEquals(length, message.length());
+
+        return message;
     }
 
     private void assertParsedMessages (String ... expectedMessages) {
@@ -142,31 +198,4 @@ public class Test_FixCommunicatorSplitMessages {
 
     }
 
-    static class PredefinedInputChannel implements InputChannel {
-        private final String [] chunks;
-        private int index;
-
-        PredefinedInputChannel(String... chunks) {
-            this.chunks = chunks;
-        }
-
-        @Override
-        public int read(byte[] buffer, int offset, int length) throws IOException {
-            if (index >= chunks.length)
-                return -1;
-
-            String chunk = chunks[index++].replace('|', '\u0001');
-            byte [] bytes = AsciiUtils.getBytes(chunk);
-
-            if (bytes.length > length)
-                throw new IllegalStateException("FIX Communicator buffer is too small to fit message of size " + bytes.length);
-            System.arraycopy(bytes, 0, buffer, offset, bytes.length);
-            return bytes.length;
-        }
-
-        @Override
-        public void close() throws IOException {
-            index = chunks.length;
-        }
-    }
 }

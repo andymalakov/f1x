@@ -20,10 +20,13 @@ import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.fields.FixTags;
 import org.f1x.io.OutputChannel;
+import org.f1x.store.MessageStore;
 import org.f1x.util.AsciiUtils;
 import org.f1x.util.TimeSource;
 import org.f1x.util.format.IntFormatter;
 import org.f1x.util.format.TimestampFormatter;
+import org.gflogger.GFLog;
+import org.gflogger.GFLogFactory;
 
 import java.io.IOException;
 
@@ -40,6 +43,7 @@ import java.io.IOException;
  */
 final class RawMessageAssembler {
 
+    private static final GFLog LOGGER = GFLogFactory.getLog(RawMessageAssembler.class);
     private final static byte SOH = 1;
 
     private final TimestampFormatter timestampFormatter = TimestampFormatter.createUTCTimestampFormatter();  //TODO Reuse instance kept by MessageBuilder?
@@ -56,7 +60,7 @@ final class RawMessageAssembler {
         System.arraycopy(BEGIN_STRING, 0, buffer, 0, BEGIN_STRING.length);
     }
 
-    void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, OutputChannel out) throws IOException {
+    void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore, OutputChannel out) throws IOException {
         int offset = BEGIN_STRING.length;
 
         final CharSequence msgType = messageBuilder.getMessageType();
@@ -94,7 +98,17 @@ final class RawMessageAssembler {
         int checkSum = Tools.calcCheckSum(buffer, offset);  //TODO: Let  MessageBuilder accumulate payload checksum?
         offset = set3DigitIntField(FixTags.CheckSum, checkSum, buffer, offset);
 
-        out.write(buffer, 0, offset);
+        try {
+            out.write(buffer, 0, offset);
+        } finally {
+            if (messageStore != null) {
+                try {
+                    messageStore.put(msgSeqNum, buffer, 0, offset);
+                } catch (Throwable e) {
+                    LOGGER.warn().append("Error putting message in store: ").commit();
+                }
+            }
+        }
     }
 
     private static int setTextField(int tagNo, CharSequence value, byte [] buffer, int offset) {

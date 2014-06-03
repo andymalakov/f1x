@@ -24,7 +24,7 @@ import org.f1x.util.AsciiUtils;
  */
 public abstract class SimpleMessageScanner<Cookie> {
 
-    public static final int MIN_MESSAGE_LENGTH = "8=FIX.X.Y|9=123456789|".length();
+    public static final int MIN_MESSAGE_LENGTH = 63; // min message example: 8=FIX.4.?|9=??|35=?|34=?|49=?|56=?|52=YYYYMMDD-HH:MM:SS|10=???|
     private static final byte [] HEADER_START = AsciiUtils.getBytes("8=FIX.");
     private static final int HEADER_START_LENGTH = HEADER_START.length;
     private static final byte SOH = 1;

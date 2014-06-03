@@ -110,16 +110,4 @@ public class FixSessionInitiator extends FixSocketCommunicator {
         }
     }
 
-    /** Handle inbound LOGON message depending on FIX session role (acceptor/initiator) and current status */
-    @Override
-    protected void processInboundLogon(boolean isSequenceNumberReset) throws IOException {
-        if (getSessionStatus() == SessionStatus.InitiatedLogon) {
-            setSessionStatus(SessionStatus.ApplicationConnected);
-            LOGGER.info().append("FIX Session established").commit();
-        } else {
-            LOGGER.info().append("Unexpected LOGON (In-session sequence reset?)").commit();
-        }
-    }
-
-
 }

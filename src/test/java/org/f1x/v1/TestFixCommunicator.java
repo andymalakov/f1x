@@ -54,10 +54,6 @@ class TestFixCommunicator extends FixCommunicator {
     }
 
     @Override
-    protected void processInboundLogon(boolean isSequenceNumberReset) throws IOException {
-    }
-
-    @Override
     public void run() {
     }
 }
