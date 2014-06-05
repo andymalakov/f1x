@@ -1,7 +1,6 @@
 package org.f1x.v1.state;
 
 import org.f1x.api.session.SessionState;
-import org.f1x.api.session.SessionStatus;
 import org.f1x.v1.InvalidFixMessageException;
 import org.junit.After;
 import org.junit.Assert;
@@ -23,11 +22,11 @@ public abstract class SessionStateTest {
 
     @Test
     public void testLastLogonTimestamp() {
-        Assert.assertEquals(-1, sessionState.getLastLogonTimestamp());
+        Assert.assertEquals(-1, sessionState.getLastConnectionTimestamp());
 
         for (int lastLogonTimestamp = 1; lastLogonTimestamp < 2000; lastLogonTimestamp++) {
-            sessionState.setLastLogonTimestamp(lastLogonTimestamp);
-            Assert.assertEquals(lastLogonTimestamp, sessionState.getLastLogonTimestamp());
+            sessionState.setLastConnectionTimestamp(lastLogonTimestamp);
+            Assert.assertEquals(lastLogonTimestamp, sessionState.getLastConnectionTimestamp());
         }
     }
 
