@@ -105,7 +105,7 @@ final class RawMessageAssembler {
                 try {
                     messageStore.put(msgSeqNum, buffer, 0, offset);
                 } catch (Throwable e) {
-                    LOGGER.warn().append("Error putting message in store: ").commit();
+                    LOGGER.warn().append("Error putting message in store: ").append(e).commit();
                 }
             }
         }
