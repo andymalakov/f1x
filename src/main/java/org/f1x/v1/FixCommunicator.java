@@ -365,8 +365,10 @@ public abstract class FixCommunicator implements FixSession {
             sessionMessageBuilder.add(FixTags.MaxMessageSize, settings.getMaxInboundMessageSize());
 
             synchronized (sendLock) {
-                if (resetSequenceNumbers)
+                if (resetSequenceNumbers) {
                     sessionState.setNextSenderSeqNum(1);
+                    messageStore.clean();
+                }
 
                 send(sessionMessageBuilder);
             }

@@ -20,12 +20,12 @@ import org.f1x.v1.InvalidFixMessageException;
  */
 public interface SessionState {
 
-    void setLastLogonTimestamp(long newValue);
+    void setLastConnectionTimestamp(long newValue);
 
     /**
      * @return last logon timestamp or -1 if unknown
      */
-    long getLastLogonTimestamp();
+    long getLastConnectionTimestamp();
 
 
     void setNextSenderSeqNum(int newValue);

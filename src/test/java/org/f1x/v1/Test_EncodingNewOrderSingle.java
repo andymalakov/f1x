@@ -6,13 +6,16 @@ import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.session.SessionID;
 import org.f1x.io.OutputChannel;
+import org.f1x.util.AsciiUtils;
 import org.f1x.util.RealTimeSource;
 import org.junit.Test;
+import quickfix.InvalidMessage;
 import quickfix.Message;
 import quickfix.field.MsgType;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.Scanner;
 
 public class Test_EncodingNewOrderSingle {
 
@@ -69,7 +72,7 @@ public class Test_EncodingNewOrderSingle {
         System.out.println("Average time " + (end - start) / N + " ns. per encoding, dummy result: " + dummy);
     }
 
-    private String encode(Message msg) {
+    private static String encode(Message msg) {
         msg.clear();
         Message.Header header = msg.getHeader();
         header.setString(FixTags.BeginString, FixVersion.FIX44.getBeginString());
@@ -99,7 +102,7 @@ public class Test_EncodingNewOrderSingle {
         return msg.toString();
     }
 
-    private void encode(MessageBuilder mb, RawMessageAssembler asm, SessionID sessionID, OutputChannel out) throws IOException {
+    private static void encode(MessageBuilder mb, RawMessageAssembler asm, SessionID sessionID, OutputChannel out) throws IOException {
         mb.clear();
         mb.setMessageType(MsgType.ORDER_SINGLE);
         mb.add(FixTags.SenderLocationID, SENDER_LOCATION_ID);
@@ -117,6 +120,39 @@ public class Test_EncodingNewOrderSingle {
         mb.add(FixTags.SecurityDesc, SECURITY_DESCRIPTION);
         mb.add(FixTags.SecurityType, SecurityType.OPTION);
         asm.send(sessionID, MSG_SEQ_NUM, mb, null, out);
+    }
+
+    public static void main(String[] args) throws InvalidMessage, IOException {
+        Scanner sc = new Scanner(System.in);
+        int mode = sc.nextInt();
+        sc.nextLine();
+        int iterations = sc.nextInt();
+        sc.nextLine();
+        switch (mode) {
+            case 1:
+                Message msg = new Message();
+                for (int i = 0; i < iterations; i++)
+                    encode(msg);
+
+                break;
+            case 2:
+                MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
+                RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, RealTimeSource.INSTANCE);
+                SessionID sessionID = new SessionIDBean(SENDER_COMP_ID, SENDER_SUB_ID, TARGET_COMP_ID, TARGET_SUB_ID);
+                NullOutputChannel out = new NullOutputChannel();
+                for (int i = 0; i < iterations; i++)
+                    encode(mb, asm, sessionID, out);
+
+                System.out.println(out.toString());
+                break;
+
+        }
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private static class NullOutputChannel implements OutputChannel {

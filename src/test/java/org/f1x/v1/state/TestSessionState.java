@@ -12,12 +12,12 @@ public class TestSessionState extends AbstractSessionState {
     private int nextTargetSeqNum = 1;
 
     @Override
-    public void setLastLogonTimestamp(long newValue) {
+    public void setLastConnectionTimestamp(long newValue) {
         lastLogonTimestamp = newValue;
     }
 
     @Override
-    public long getLastLogonTimestamp() {
+    public long getLastConnectionTimestamp() {
         return lastLogonTimestamp;
     }
 
