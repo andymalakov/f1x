@@ -61,14 +61,14 @@ public class FileSessionState extends AbstractSessionState {
     }
 
     @Override
-    public final void setLastLogonTimestamp(long newValue) {
+    public final void setLastConnectionTimestamp(long newValue) {
         synchronized (lastLogonTimestamp) {
             lastLogonTimestamp.write(newValue);
         }
     }
 
     @Override
-    public long getLastLogonTimestamp() {
+    public long getLastConnectionTimestamp() {
         synchronized (lastLogonTimestamp) {
             return lastLogonTimestamp.read();
         }
@@ -132,7 +132,7 @@ public class FileSessionState extends AbstractSessionState {
     }
 
     protected final void setDefaults() {
-        setLastLogonTimestamp(-1);
+        setLastConnectionTimestamp(-1);
         setNextSenderSeqNum(1);
         setNextTargetSeqNum(1);
     }
