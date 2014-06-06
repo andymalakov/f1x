@@ -16,9 +16,11 @@ package org.f1x.v1.schedule;
 
 /** Always-on, never ending session */
 public final class ContinuousSchedule implements SessionSchedule {
+    private static final SessionTimes FOREVER = new SessionTimes(Long.MIN_VALUE, Long.MAX_VALUE);
+
     @Override
-    public long waitForSessionStart(long lastSessionTimestamp) throws InterruptedException {
-        return Long.MIN_VALUE;
+    public SessionTimes waitForSessionStart() {
+        return FOREVER;
     }
 
 }
