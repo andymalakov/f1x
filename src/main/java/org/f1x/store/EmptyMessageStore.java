@@ -31,8 +31,7 @@ public final class EmptyMessageStore implements MessageStore {
         return EmptyMessageStoreIterator.getInstance();
     }
 
-
-    private static final class EmptyMessageStoreIterator implements MessageStoreIterator {
+    public static final class EmptyMessageStoreIterator implements MessageStoreIterator {
 
         private static final MessageStoreIterator INSTANCE = new EmptyMessageStoreIterator();
 
@@ -49,6 +48,5 @@ public final class EmptyMessageStore implements MessageStore {
         }
 
     }
-
 
 }
