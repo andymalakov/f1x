@@ -19,7 +19,7 @@ public final class ContinuousSchedule implements SessionSchedule {
     private static final SessionTimes FOREVER = new SessionTimes(Long.MIN_VALUE, Long.MAX_VALUE);
 
     @Override
-    public SessionTimes waitForSessionStart() {
+    public SessionTimes getCurrentSessionTimes(long currentTime) {
         return FOREVER;
     }
 

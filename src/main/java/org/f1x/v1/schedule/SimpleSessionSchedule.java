@@ -15,7 +15,6 @@
 package org.f1x.v1.schedule;
 
 import org.f1x.util.AsciiUtils;
-import org.f1x.util.TimeSource;
 import org.f1x.util.parse.TimeOfDayParser;
 
 import java.util.Calendar;
@@ -31,7 +30,6 @@ public class SimpleSessionSchedule implements SessionSchedule {
     protected final TimeEndPoint end;
     private final boolean isDailySchedule;
     private final boolean isEndTimeBeforeStartTimeOfDay;
-    private final TimeSource timeSource;
 
     /**
      * @param startDayOfWeek Session Start day of week (can be <code>-1</code> for sessions that happen every day). Week starts with sunday and has code 1. For example, <code>Calendar.MONDAY</code>.
@@ -41,7 +39,7 @@ public class SimpleSessionSchedule implements SessionSchedule {
      * @param isDailySchedule <code>true</code> for daily FIX sessions, <code>false</code> for multi-day sessions. Makes sense only when startDayOfWeek and endDayOfWeek are set.
      * @param tz optional time zone (otherwise local TZ is assumed)
      */
-    public SimpleSessionSchedule (int startDayOfWeek, int endDayOfWeek, String startTimeOfDay, String endTimeOfDay, boolean isDailySchedule, TimeZone tz, TimeSource timeSource) {
+    public SimpleSessionSchedule (int startDayOfWeek, int endDayOfWeek, String startTimeOfDay, String endTimeOfDay, boolean isDailySchedule, TimeZone tz) {
         if (startDayOfWeek != -1 && endDayOfWeek == -1 || startDayOfWeek == -1 && endDayOfWeek != -1)
             throw new IllegalArgumentException("Start and End day of weeks must be specified together");
 
@@ -54,26 +52,24 @@ public class SimpleSessionSchedule implements SessionSchedule {
         this.end = new TimeEndPoint(endDayOfWeek, endTimeOfDay, tz);
         this.isEndTimeBeforeStartTimeOfDay = start.calcTimeInSeconds() > end.calcTimeInSeconds();
         this.isDailySchedule = isDailySchedule;
-        this.timeSource = timeSource;
     }
 
     @Override
-    public synchronized SessionTimes waitForSessionStart() {
-        final long now = timeSource.currentTimeMillis();
+    public synchronized SessionTimes getCurrentSessionTimes(long currentTime) {
 
-        setMostRecentSessionBefore(now);
+        setMostRecentSessionBefore(currentTime);
 
-        if (now < end.getTimeInMillis()) {
+        if (currentTime < end.getTimeInMillis()) {
             return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
 //
-//            // Session allowed now
+//            // Session allowed currentTime
 //            boolean isNewSession = start.after(lastConnectionTimestamp);
 //            return (isNewSession) ? -end.getTimeInMillis() : end.getTimeInMillis();
         } else {
             // Session is over
-            setNextSessionAfter(now);
+            setNextSessionAfter(currentTime);
 //            return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
-//            long timeUntilNextSession = start.getTimeInMillis() - now;
+//            long timeUntilNextSession = start.getTimeInMillis() - currentTime;
 //
 //            if (timeUntilNextSession > 0)
 //                timeSource.sleep(timeUntilNextSession);

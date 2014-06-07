@@ -17,8 +17,6 @@ package org.f1x.v1.schedule;
 import org.f1x.util.StoredTimeSource;
 import org.f1x.util.TestUtils;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Calendar;
@@ -302,7 +300,7 @@ public class Test_SimpleSessionSchedule {
 
     private void assertSessionWaitAndEndTime(String currentTime, String expectedSessionEndTime, long delayBeforeStart) throws InterruptedException {
         timeSource.setLocalTime(currentTime);
-        SessionTimes sessionTimes = schedule.waitForSessionStart();
+        SessionTimes sessionTimes = schedule.getCurrentSessionTimes(timeSource.currentTimeMillis());
 
         long now = timeSource.currentTimeMillis();
         Assert.assertEquals("Session start time", delayBeforeStart, Math.max(0, sessionTimes.getStart() - now));
@@ -315,19 +313,19 @@ public class Test_SimpleSessionSchedule {
 
 //    private void assertNewSession (SessionSchedule ss, String lastConnectionTimestamp, String currentTime) throws InterruptedException {
 //        timeSource.setLocalTime(currentTime);
-//        boolean newSession = ss.waitForSessionStart(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
+//        boolean newSession = ss.getCurrentSessionTimes(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
 //        Assert.assertTrue("same session", newSession);
 //    }
 //
 //    private void assertOldSession (SessionSchedule ss, String lastConnectionTimestamp, String currentTime) throws InterruptedException {
 //        timeSource.setLocalTime(currentTime);
-//        boolean newSession = ss.waitForSessionStart(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
+//        boolean newSession = ss.getCurrentSessionTimes(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
 //        Assert.assertFalse("old session", newSession);
 //    }
 
 
     private SimpleSessionSchedule makeSchedule (int startDayOfWeek, int endDayOfWeek, String startTimeOfDay, String endTimeOfDay, boolean isDailySchedule) {
-        return new SimpleSessionSchedule(startDayOfWeek, endDayOfWeek, startTimeOfDay, endTimeOfDay, isDailySchedule, null, timeSource);
+        return new SimpleSessionSchedule(startDayOfWeek, endDayOfWeek, startTimeOfDay, endTimeOfDay, isDailySchedule, null);
     }
 
     private static String formatDuration (long millis) {

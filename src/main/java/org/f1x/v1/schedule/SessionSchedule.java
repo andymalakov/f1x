@@ -27,9 +27,9 @@ public interface SessionSchedule {
     /**
      * Usage example:
      * <pre>
-     * long now = System.currentTimeMillis();
-     * SessionTimes sessionTimes = schedule.waitForSessionStart()
-     * if (now > sessionTimes.getStart()) {
+     * long currentTime = System.currentTimeMillis();
+     * SessionTimes sessionTimes = schedule.getCurrentSessionTimes()
+     * if (currentTime > sessionTimes.getStart()) {
      *     ///start session immediately, set timer to stop session at sessionTimes.getEnd()
      * } else {
      *     ///set timer to start session at sessionTimes.getStart() and end it some time later at sessionTimes.getEnd()
@@ -37,6 +37,7 @@ public interface SessionSchedule {
      * </pre>
      *
      * @return exact times of the current session (if method is called during active session hours) or the next session (if method is called after session hours).
+     * @param currentTime
      */
-    SessionTimes waitForSessionStart();
+    SessionTimes getCurrentSessionTimes(long currentTime);
 }
