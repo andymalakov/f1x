@@ -73,4 +73,15 @@ public final class TimestampParser {
     }
 
 
+    // YYYYMMDD as a number
+    public int getUTCDateOnly2(byte[] buffer, int offset, int length) {
+        if (length != 8)
+            throw new FixParserException("LocalMktDate should contain 8 digits");
+
+        return
+                NumbersParser.parsePositiveInt(buffer, offset, 4) * 10000 + // year
+                NumbersParser.parsePositiveInt(buffer, offset+4, 2) * 100 + // month
+                NumbersParser.parsePositiveInt(buffer, offset+6, 2);        // day
+
+    }
 }

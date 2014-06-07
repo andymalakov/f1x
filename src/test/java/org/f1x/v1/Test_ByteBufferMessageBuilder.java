@@ -47,10 +47,11 @@ public class Test_ByteBufferMessageBuilder {
         byte [] rawField = "RAW".getBytes();
         mb.addRaw(16, rawField, 0, rawField.length);
         mb.add(17).append((byte)'A').append('B').append("CD").append("**EF**", 2, 4).append(123).append(456L).append(.001).end();
+        mb.addLocalMktDate2(18, 20140607);
 
         assertContentEquals("1=ABC|2=B|3=123|4=123|5=3.142|6=x|7=Y|8=N|9=1|10=3|11=B|12=20121009-13:44:49.421|13=20121009|14=13:44:49.421|15=" +
                 getMktDateFromUTCTimestamp(utcTimestampForMktDate) +
-                "|16=RAW|17=ABCDEF1234560.001|");
+                "|16=RAW|17=ABCDEF1234560.001|18=20140607|");
     }
 
     @Test

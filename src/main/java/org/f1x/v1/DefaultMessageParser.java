@@ -169,6 +169,12 @@ public class DefaultMessageParser implements MessageParser {
         return localTimestampParser.getUTCDateOnly(buffer, valueOffset, valueLength);
     }
 
+
+    @Override
+    public int getLocalMktDate2() {
+        return localTimestampParser.getUTCDateOnly2(buffer, valueOffset, valueLength);
+    }
+
     @Override
     public int getUTCTimeOnly() {
         return TimeOfDayParser.parseTimeOfDay(buffer, valueOffset, valueLength);

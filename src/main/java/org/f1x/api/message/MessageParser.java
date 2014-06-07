@@ -58,8 +58,11 @@ public interface MessageParser {
     /** @return value of current tag interpreted as UTC Date (in YYYYMMDD format) */
     long getUTCDateOnly ();
 
-    /** @return value of current tag interpreted as LocalMktDate (in YYYYMMDD format). Return time "coordinated universal time (UTC)" which will have specified year/month/day in local timezone  */
+    /** @return value of current tag interpreted as LocalMktDate (in YYYYMMDD format). Result is UTC timestamps which will have specified year/month/day in local timezone  */
     long getLocalMktDate ();
+
+    /** @return value of current tag interpreted as LocalMktDate (in YYYYMMDD format). Result is a decimal number with digits matching YYYYMMDD. */
+    int getLocalMktDate2 ();
 
     /** @return true if value of the last processed tag equals to given byte array */
     boolean isValueEquals(byte[] constant);
