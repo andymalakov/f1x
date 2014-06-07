@@ -27,23 +27,11 @@ import java.util.Date;
 public class Test_SimpleSessionSchedule {
 
     private static final String LONG_TIME_AGO = "20101212-00:00:00.000"; // some random time in the past (exact moment is not important)
-    private long lastSleepTime;
     private StoredTimeSource timeSource = new StoredTimeSource() {
         {
             setLocalTime(LONG_TIME_AGO);
         }
-
-        @Override
-        public void sleep(long millis) throws InterruptedException {
-            lastSleepTime = millis;
-        }
     };
-
-    @Before
-    public void init() {
-        lastSleepTime = 0;
-    }
-
 
     private SimpleSessionSchedule schedule;
 
@@ -314,17 +302,16 @@ public class Test_SimpleSessionSchedule {
 
     private void assertSessionWaitAndEndTime(String currentTime, String expectedSessionEndTime, long delayBeforeStart) throws InterruptedException {
         timeSource.setLocalTime(currentTime);
-        long actualSessionEndTimeTimestamp = schedule.waitForSessionStart(-1);
+        SessionTimes sessionTimes = schedule.waitForSessionStart();
 
-        assertSleepTime(delayBeforeStart);
-        String actualSessionEndTime = TestUtils.formatLocalTimestamp(Math.abs(actualSessionEndTimeTimestamp));
+        long now = timeSource.currentTimeMillis();
+        Assert.assertEquals("Session start time", delayBeforeStart, Math.max(0, sessionTimes.getStart() - now));
+
+
+        String actualSessionEndTime = TestUtils.formatLocalTimestamp(sessionTimes.getEnd());
         Assert.assertEquals("Session end time", expectedSessionEndTime, actualSessionEndTime);
     }
 
-    private void assertSleepTime(long expectedSleepTime) {
-        Assert.assertEquals("Sleep time before session start", formatDuration(expectedSleepTime), formatDuration(lastSleepTime));
-        lastSleepTime = 0; // reset
-    }
 
 //    private void assertNewSession (SessionSchedule ss, String lastConnectionTimestamp, String currentTime) throws InterruptedException {
 //        timeSource.setLocalTime(currentTime);

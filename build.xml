@@ -74,10 +74,17 @@
             <pathelement location="${lib}/gflogger.jar"/>
             <pathelement location="${tools}/junit-4.11.jar	"/>
             <pathelement location="${tools}/allocation.jar"/>
+<<<<<<< HEAD
             <pathelement location="${tools}/quickfix-1.5.3.jar"/>
             <pathelement location="${tools}/jmh-core-0.8.jar"/>
             <pathelement location="${tools}/hamcrest-core-1.3.jar"/>
             <pathelement location="${tools}/mockito-all-1.9.5.jar"/>
+=======
+            <pathelement location="${tools}/mockito-core-1.9.0.jar"/>
+            <pathelement location="${tools}/quickfixj-all-1.5.3.jar"/>
+            <pathelement location="${tools}/hamcrest-core-1.3.jar"/>
+            <pathelement location="${tools}/jmh-core-0.5.5.jar"/>
+>>>>>>> fba238e4c88f36298ece08a8ab5fa8d0edaf3060
         </classpath>
     </javac>
 

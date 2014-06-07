@@ -57,35 +57,30 @@ public class SimpleSessionSchedule implements SessionSchedule {
         this.timeSource = timeSource;
     }
 
-    /**
-     * If Schedule allows FIX session at current time, this method returns immediately. Otherwise this method blocks until it is time to establish new FIX session.
-     * @param lastConnectionTimestamp previous connection timestamp, or <code>-1</code> this is a first time connection or timestamp of the last connection is unknown.
-     * @return Session end time (in Java 'epoch' time format) with a twist: result sign is used to indicate if new connection will continue previously running session (+) or it will open a new FIX session according to this FIX schedule (-).
-     *         That is negative result can be used that FIX sequence numbers may require reset. In both cases, code like <code>Thread.sleep(Math.abs(result))</code> will sleep until it is time to finish this session.
-     */
     @Override
-    public synchronized long waitForSessionStart(long lastConnectionTimestamp)
-        throws InterruptedException
-    {
+    public synchronized SessionTimes waitForSessionStart() {
         final long now = timeSource.currentTimeMillis();
 
         setMostRecentSessionBefore(now);
 
         if (now < end.getTimeInMillis()) {
-            // Session allowed now
-            boolean isNewSession = start.after(lastConnectionTimestamp);
-            return (isNewSession) ? -end.getTimeInMillis() : end.getTimeInMillis();
+            return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
+//
+//            // Session allowed now
+//            boolean isNewSession = start.after(lastConnectionTimestamp);
+//            return (isNewSession) ? -end.getTimeInMillis() : end.getTimeInMillis();
         } else {
             // Session is over
-
             setNextSessionAfter(now);
-            long timeUntilNextSession = start.getTimeInMillis() - now;
-
-            if (timeUntilNextSession > 0)
-                timeSource.sleep(timeUntilNextSession);
-
-            return -end.getTimeInMillis(); // this is new session
+//            return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
+//            long timeUntilNextSession = start.getTimeInMillis() - now;
+//
+//            if (timeUntilNextSession > 0)
+//                timeSource.sleep(timeUntilNextSession);
+//
+//            return -end.getTimeInMillis(); // this is new session
         }
+        return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
     }
 
     /** Sets start/end times of current session if it includes given timestamp or the most recent session if given timestamp is outside of this schedule */
