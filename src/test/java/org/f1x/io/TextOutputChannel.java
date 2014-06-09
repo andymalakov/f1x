@@ -19,7 +19,7 @@ import java.io.IOException;
 
 public class TextOutputChannel implements OutputChannel {
 
-    private StringBuilder sb = new StringBuilder();
+    protected StringBuilder sb = new StringBuilder();
 
     @Override
     public void write(byte[] buffer, int offset, int length) throws IOException {
