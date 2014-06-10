@@ -146,11 +146,11 @@ public class Test_EchoServer extends  TestCommon {
 
 
         @Override
-        protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+        protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
             if (Tools.equals(MsgType.ORDER_SINGLE, msgType)) {
                 messageCount.countDown();
             } else {
-                super.processInboundAppMessage(msgType, parser);
+                super.processInboundAppMessage(msgSeqNum, msgType, parser);
             }
         }
 

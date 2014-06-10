@@ -61,11 +61,11 @@ public class SimpleFixInitiator extends FixSessionInitiator {
     }
 
     @Override
-    protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+    protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
         if (Tools.equals(MsgType.EXECUTION_REPORT, msgType)) {
             processInboundExecutionReport(parser);
         } else
-            super.processInboundAppMessage(msgType, parser);
+            super.processInboundAppMessage(msgSeqNum, msgType, parser);
     }
 
     private static final ByteEnumLookup<OrdStatus> ordStatusLookup = new ByteEnumLookup<>(OrdStatus.class);

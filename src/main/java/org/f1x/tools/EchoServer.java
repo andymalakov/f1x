@@ -62,7 +62,7 @@ public class EchoServer extends SingleSessionAcceptor {
         }
 
         @Override
-        protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+        protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
             mb.clear();
             mb.setMessageType(msgType.toString());
 

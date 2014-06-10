@@ -54,7 +54,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
         communicator = new TestFixCommunicator(SESSION_ID, TIME_SOURCE) {
 
             @Override
-            protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+            protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
                 sendHeartbeat(null); // just increases sender seq num
             }
 

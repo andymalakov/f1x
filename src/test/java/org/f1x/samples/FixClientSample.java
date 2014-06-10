@@ -52,7 +52,7 @@ public class FixClientSample {
     public static void sample3 () {
         final FixSession session = new FixSessionInitiator("localhost", 9999, FixVersion.FIX44, new SessionIDBean("SENDER-COMP-ID", "TARGET-COMP-ID")) {
             @Override
-            protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+            protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
                 //TODO:
             }
         };

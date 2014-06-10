@@ -139,7 +139,7 @@ public class LatencyTestClient extends FixSessionInitiator {
     }
 
     @Override
-    protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+    protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
         if (Tools.equals(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH, msgType)) {
             while(parser.next()) {
                 if (parser.getTagNum() == 8888) {
@@ -148,7 +148,7 @@ public class LatencyTestClient extends FixSessionInitiator {
                 }
             }
         } else {
-            super.processInboundAppMessage(msgType, parser);
+            super.processInboundAppMessage(msgSeqNum, msgType, parser);
         }
     }
 

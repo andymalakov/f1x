@@ -289,10 +289,10 @@ public abstract class FixCommunicator implements FixSession {
 
             parser.getByteSequence(msgType);
 
-            final int msgSeqNum = findMsgSeqNum(parser);
-
             if (messageLog != null)
                 messageLog.log(true, inboundMessageBuffer, messageStart, messageLength);
+
+            final int msgSeqNum = findMsgSeqNum(parser);
 
             // set parser limit to consume single message
             parser.set(inboundMessageBuffer, messageStart, messageLength);
@@ -612,10 +612,10 @@ public abstract class FixCommunicator implements FixSession {
             processed = false;
         }
         if ( ! processed)
-            processInboundAppMessage(msgSeqNumX, msgType, parser);
+            processInboundAppMessage(msgType, msgSeqNumX, parser);
     }
 
-    protected void processInboundAppMessage(int msgSeqNumX, CharSequence msgType, MessageParser parser) throws IOException, InvalidFixMessageException {
+    protected void processInboundAppMessage(CharSequence msgType, int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
         LOGGER.debug().append("Processing inbound message with type: ").append(msgType).commit();
 
         if (msgSeqNumX > 0) { // PossDupFlag=N
@@ -623,13 +623,15 @@ public abstract class FixCommunicator implements FixSession {
             if ( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) //Let's imagine we expected MsgSeqNum=5 but received 10
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX - 1);   //This will send ResendRequest(5, 0) and set currentResendEndSeqNo=9
 
-            sessionState.setNextTargetSeqNum(msgSeqNumX+1);
+            sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
+        } else {
+            msgSeqNumX = -msgSeqNumX;
         }
 
-        processInboundAppMessage(msgType, parser); //TODO: Add parameter PossDupFlag = (msgSeqNum < 0)
+        processInboundAppMessage(msgSeqNumX, msgType, parser); //TODO: Add parameter PossDupFlag = (msgSeqNum < 0)
     }
 
-    protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+    protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
         // by default do nothing
     }
 

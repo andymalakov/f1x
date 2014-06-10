@@ -84,7 +84,8 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
         offset = CharSequenceFormatter.format(value, start, end, buffer, offset);
-        buffer[offset++] = SOH;    }
+        buffer[offset++] = SOH;
+    }
 
     @Override
     public void add(int tagNo, long value) {
