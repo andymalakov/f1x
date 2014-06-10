@@ -69,7 +69,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
         }
 
         @Override
-        protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
+        protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
             if (Tools.equals(MsgType.ORDER_SINGLE, msgType)) {
                 try {
                     processInboundOrderSingle(parser);
@@ -77,7 +77,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
                     e.printStackTrace();
                 }
             } else
-                super.processInboundAppMessage(msgSeqNum, msgType, parser);
+                super.processInboundAppMessage(msgType, msgSeqNum, possDup, parser);
         }
 
         private void scheduleStats(final int intervalInMillis) {

@@ -43,7 +43,7 @@ public class NullServer extends SingleSessionAcceptor {
         }
 
         @Override
-        protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) {
+        protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
             // do nothing
         }
     }
