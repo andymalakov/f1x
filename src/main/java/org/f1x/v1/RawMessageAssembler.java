@@ -101,13 +101,8 @@ final class RawMessageAssembler {
         try {
             out.write(buffer, 0, offset);
         } finally {
-            if (messageStore != null) {
-                try {
-                    messageStore.put(msgSeqNum, buffer, 0, offset);
-                } catch (Throwable e) {
-                    LOGGER.warn().append("Error putting message in store: ").append(e).commit();
-                }
-            }
+            if (messageStore != null)
+                messageStore.put(msgSeqNum, buffer, 0, offset);
         }
     }
 

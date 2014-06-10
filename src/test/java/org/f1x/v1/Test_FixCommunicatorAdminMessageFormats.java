@@ -30,6 +30,10 @@ public class Test_FixCommunicatorAdminMessageFormats {
     private final TextOutputChannel out = new TextOutputChannel();
     private final FixCommunicator fix = new TestFixCommunicator ( new SessionIDBean("CLIENT", "SERVER"), StoredTimeSource.makeFromUTCTimestamp("20140101-10:10:10.100"), new EmptyInputChannel(), out);
 
+    {
+        fix.init();
+    }
+
     @Test
     public void testHeartbeat() throws IOException {
         fix.sendHeartbeat("TEST#123");
@@ -45,7 +49,7 @@ public class Test_FixCommunicatorAdminMessageFormats {
     @Test
     public void testResendRequest() throws IOException {
         fix.sendResendRequest(1, 2);
-        assertFix("8=FIX.4.4|9=64|35=2|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|7=1|16=2|10=200|");
+        assertFix("8=FIX.4.4|9=64|35=2|34=1|49=CLIENT|52=20140101-10:10:10.100|56=SERVER|7=1|16=1|10=199|");
     }
 
     @Test

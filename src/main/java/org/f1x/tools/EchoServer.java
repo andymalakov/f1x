@@ -24,6 +24,7 @@ import org.f1x.api.FixAcceptorSettings;
 import org.f1x.log.NullLogFactory;
 import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
+import org.f1x.v1.schedule.SessionSchedule;
 import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
 import java.io.IOException;
@@ -32,14 +33,23 @@ import java.io.IOException;
 public class EchoServer extends SingleSessionAcceptor {
 
     public EchoServer(int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        this(null, bindPort, sessionID, settings);
+        this(null, bindPort, sessionID, settings, null);
     }
 
-    public EchoServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        super(host, bindPort, sessionID, new EchoServerSessionAcceptor(FixVersion.FIX44, settings));
-
-
+    public EchoServer(int bindPort, SessionID sessionID, FixAcceptorSettings settings, SessionSchedule schedule) {
+        this(null, bindPort, sessionID, settings, schedule);
     }
+
+    public EchoServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings, SessionSchedule schedule) {
+        super(host, bindPort, sessionID, createAcceptor(settings, schedule));
+    }
+
+    private static EchoServerSessionAcceptor createAcceptor(FixAcceptorSettings settings, SessionSchedule schedule) {
+        EchoServerSessionAcceptor acceptor = new EchoServerSessionAcceptor(FixVersion.FIX44, settings);
+        acceptor.setSessionSchedule(schedule);
+        return acceptor;
+    }
+
 
     private static class EchoServerSessionAcceptor extends FixSessionAcceptor {
         private final MessageBuilder mb;
@@ -80,7 +90,7 @@ public class EchoServer extends SingleSessionAcceptor {
 
         FixAcceptorSettings settings = new FixAcceptorSettings();
 
-        final EchoServer server = new EchoServer(host, port, new SessionIDBean("SERVER", "CLIENT"), settings);
+        final EchoServer server = new EchoServer(host, port, new SessionIDBean("SERVER", "CLIENT"), settings, null);
         final Thread acceptorThread = new Thread(server, "EchoServer");
         acceptorThread.start();
 

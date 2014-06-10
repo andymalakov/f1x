@@ -8,6 +8,7 @@ import org.f1x.api.session.SessionID;
 import org.f1x.io.OutputChannel;
 import org.f1x.util.AsciiUtils;
 import org.f1x.util.RealTimeSource;
+import org.junit.Ignore;
 import org.junit.Test;
 import quickfix.InvalidMessage;
 import quickfix.Message;
@@ -36,6 +37,7 @@ public class Test_EncodingNewOrderSingle {
     private static final String SECURITY_DESCRIPTION = "AOZ3 C02000";
     private static final String TEXT = "NIGEL";
 
+    @Ignore
     @Test
     public void testTinyFIXEncoding() throws IOException {
         MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
@@ -55,6 +57,7 @@ public class Test_EncodingNewOrderSingle {
         System.out.println("Average time " + (end - start) / N + " ns. per encoding, dummy result: " + out);
     }
 
+    @Ignore
     @Test
     public void testQuickFIXJEncoding() {
         Message msg = new Message();

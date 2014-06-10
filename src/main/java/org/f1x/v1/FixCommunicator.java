@@ -19,9 +19,12 @@ import org.f1x.api.FixSettings;
 import org.f1x.api.message.fields.SessionRejectReason;
 import org.f1x.api.session.*;
 import org.f1x.api.message.fields.EncryptMethod;
-import org.f1x.store.InMemoryMessageStore;
+import org.f1x.store.EmptyMessageStore;
 import org.f1x.store.MessageStore;
+import org.f1x.store.SafeMessageStore;
 import org.f1x.util.TimeSource;
+import org.f1x.util.timer.GlobalTimer;
+import org.f1x.v1.schedule.SessionSchedule;
 import org.f1x.v1.state.MemorySessionState;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
@@ -41,6 +44,8 @@ import org.f1x.util.RealTimeSource;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Networking common for FIX Acceptor and FIX Initiator
@@ -64,6 +69,7 @@ public abstract class FixCommunicator implements FixSession {
     private OutputChannel out;
 
     private MessageStore messageStore;
+    protected SessionSchedule schedule;
 
     // used by receiver thread only
     private final DefaultMessageParser parserForResend = new DefaultMessageParser();
@@ -72,7 +78,8 @@ public abstract class FixCommunicator implements FixSession {
     private final MessageBuilder messageBuilderForResend;
 
     private volatile SessionStatus status = SessionStatus.Disconnected;
-    protected volatile boolean active; // close() sets this to false
+    protected volatile boolean active = true; // close() sets this to false
+    protected final AtomicBoolean running = new AtomicBoolean();
 
     // used by receiver thread only
     private final DefaultMessageParser parser = new DefaultMessageParser();
@@ -84,6 +91,9 @@ public abstract class FixCommunicator implements FixSession {
     // Used by senders
     private final MessageBuilder sessionMessageBuilder;
     private final RawMessageAssembler messageAssembler;
+
+    protected final TimeSource timeSource;
+    private TimerTask sessionEndTask;
 
     private final Object sendLock = new Object();
 
@@ -108,6 +118,7 @@ public abstract class FixCommunicator implements FixSession {
         messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), timeSource);
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
         messageBufferForResend = new byte[settings.getMaxOutboundMessageSize()];
+        this.timeSource = timeSource;
     }
 
     @Override
@@ -145,6 +156,10 @@ public abstract class FixCommunicator implements FixSession {
         this.messageStore = messageStore;
     }
 
+    public void setSessionSchedule(SessionSchedule schedule) {
+        this.schedule = schedule;
+    }
+
     protected void setSessionStatus(SessionStatus status) {
         final SessionStatus oldStatus = this.status;
         if (oldStatus == status) {
@@ -174,29 +189,37 @@ public abstract class FixCommunicator implements FixSession {
             throw new IllegalStateException("Expecting " + expectedStatus1 + " or " + expectedStatus2 + " status instead of " + actualStatus);
     }
 
-    public void connect(InputChannel in, OutputChannel out) {
+    protected void connect(InputChannel in, OutputChannel out) {
         this.messageLog = (messageLogFactory != null) ? messageLogFactory.create(getSessionID()) : null;
-        if(sessionState == null) // TODO: make init method and invoke in begging run
-            sessionState = new MemorySessionState();
-
-        if(messageStore == null)
-           messageStore = new InMemoryMessageStore(settings.getMaxOutboundMessageSize() * 128);
 
         this.in = in;
         this.out = (messageLog != null) ? new LoggingOutputChannel(messageLog, out) : out;
     }
 
+    protected void init() {
+        if (sessionState == null)
+            sessionState = new MemorySessionState();
+
+        messageStore = messageStore == null ?
+                EmptyMessageStore.getInstance() :
+                new SafeMessageStore(messageStore);
+    }
+
+    protected void destroy(){
+    }
+
     /** Process inbound messages until session ends */
-    protected final void processInboundMessages() {
-        processInboundMessages(null, 0);
+    protected final boolean processInboundMessages() {
+        return processInboundMessages(null, 0);
     }
 
     /** Process inbound messages until session ends
      * @param logonBuffer buffer containing session LOGON message and may be some other messages or a part of them
      * @param length actual number of bytes that should be consumed from logonBuffer
      */
-    protected final void processInboundMessages(byte [] logonBuffer, int length) {
+    protected final boolean processInboundMessages(byte[] logonBuffer, int length) {
         LOGGER.info().append("Processing FIX Session").commit();
+        boolean normalExit = false;
         try {
             int offset = 0;
             if (logonBuffer != null) {
@@ -213,6 +236,7 @@ public abstract class FixCommunicator implements FixSession {
                 }
             }
             LOGGER.error().append("Finishing FIX session").commit();
+            normalExit = true;
         } catch (InvalidFixMessageException e) {
             errorProcessingMessage("Protocol Error", e, false);
         } catch (ConnectionProblemException e) {
@@ -224,6 +248,7 @@ public abstract class FixCommunicator implements FixSession {
         }
 
         assertSessionStatus(SessionStatus.Disconnected);
+        return normalExit;
     }
 
     protected void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
@@ -289,7 +314,7 @@ public abstract class FixCommunicator implements FixSession {
     public void logout(String cause) {
         LOGGER.info().append("Initiating FIX Logout: ").append(cause).commit();
 
-        if (status == SessionStatus.ApplicationConnected) {
+        if (status == SessionStatus.ApplicationConnected) { // TODO: lock
             try {
                 sendLogout(cause);
             } catch (IOException e) {
@@ -381,7 +406,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void sendLogout(CharSequence cause) throws IOException {
-        assertSessionStatus(SessionStatus.ApplicationConnected);
+        assertSessionStatus(SessionStatus.ApplicationConnected); // TODO: remove
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.LOGOUT);
@@ -389,7 +414,7 @@ public abstract class FixCommunicator implements FixSession {
                 sessionMessageBuilder.add(FixTags.Text, cause);
             send(sessionMessageBuilder);
         }
-        setSessionStatus(SessionStatus.InitiatedLogout);
+        setSessionStatus(SessionStatus.InitiatedLogout); // TODO: CAS (SessionStatus.ApplicationConnected, SessionStatus.InitiatedLogout)
     }
 
     /**
@@ -813,14 +838,7 @@ public abstract class FixCommunicator implements FixSession {
             return;
         }
 
-        MessageStore.MessageStoreIterator iterator;
-        try {
-            iterator = messageStore.iterator(beginSeqNo, endSeqNo);
-        } catch (Exception e) {
-            LOGGER.warn().append("Error loading messages from store: ").append(e).commit();
-            sendGapFill(beginSeqNo, endSeqNo + 1);
-            return;
-        }
+        MessageStore.MessageStoreIterator iterator = messageStore.iterator(beginSeqNo, endSeqNo);
 
         int msgSeqNumOfLastResentMessage = beginSeqNo - 1;
         int msgSeqNum;
@@ -982,6 +1000,18 @@ public abstract class FixCommunicator implements FixSession {
         else
             LOGGER.warn().append("Received session-level REJECT:").append(refSeqNum).commit();
 
+    }
+
+    protected void scheduleSessionEnd(long timeout) {
+        sessionEndTask = new SessionEndTask(this);
+        GlobalTimer.getInstance().schedule(sessionEndTask, timeout);
+    }
+
+    protected void unscheduleSessionEnd() {
+        if (sessionEndTask != null) {
+            sessionEndTask.cancel();
+            sessionEndTask = null;
+        }
     }
 
     protected static boolean checkTargetMsgSeqNum(int actual, int expected) throws InvalidFixMessageException, IOException {

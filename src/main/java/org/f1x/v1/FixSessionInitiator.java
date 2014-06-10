@@ -18,8 +18,8 @@ import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
+import org.f1x.v1.schedule.SessionTimes;
 
-import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 
@@ -27,9 +27,12 @@ import java.net.Socket;
  * FIX Communicator that initiates outbound FIX connections
  */
 public class FixSessionInitiator extends FixSocketCommunicator {
+
     private final SessionID sessionID;
     private final String host;
     private final int port;
+
+    private volatile Thread initiatorThread;
 
     public FixSessionInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID) {
         this(host, port, fixVersion, sessionID, new FixInitiatorSettings());
@@ -54,29 +57,80 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
     @Override
     public void run() {
-        active = true;
+        if (!running.compareAndSet(false, true))
+            throw new IllegalStateException("Already running");
+
+        initiatorThread = Thread.currentThread();
+
+        try {
+            init();
+            try {
+                work();
+            } finally {
+                destroy();
+            }
+        } finally {
+            initiatorThread = null;
+            active = true; //TODO: Can we delay it till the moment we need to reuse
+            running.set(false);
+            LOGGER.info().append("Terminating FIX Initiator thread").commit();
+        }
+    }
+
+    protected void work() {
         boolean needPause = false;
         try {
             while (active) {
-                connect(needPause);
-                logon();
-                processInboundMessages();
-
-                needPause = true;
+                try {
+                    startSession(needPause);
+                    needPause = !processInboundMessages();
+                } finally {
+                    endSession();
+                }
             }
         } catch (Throwable e) {
-            if ( ! (e instanceof InterruptedException))
+            if (!(e instanceof InterruptedException))
                 LOGGER.warn().append("Error in initiator loop (ignoring)").append(e).commit();
         }
-        LOGGER.info().append("Terminating FIX Initiator thread").commit();
     }
 
+    protected void startSession(boolean needPause) throws InterruptedException {
+        waitForSessionStart();
+        connect(needPause);
+        logon();
+    }
 
-    /** Connects to FIX counter-party (in several attempts if necessary) */
-    private void connect (boolean needPause) throws InterruptedException {
+    private void waitForSessionStart() throws InterruptedException {
+        if (schedule != null) {
+            long now = timeSource.currentTimeMillis();
+
+            SessionTimes sessionTimes = schedule.getCurrentSessionTimes(now);
+            final long sessionStart = sessionTimes.getStart();
+            if (now < sessionStart) {
+                timeSource.sleep(sessionStart - now);
+                now = sessionStart;
+            }
+
+            final long lastConnectionTime = sessionState.getLastConnectionTimestamp();
+            if (lastConnectionTime < sessionStart)
+                sessionState.resetNextSeqNums();
+
+            final long sessionEnd = sessionTimes.getEnd();
+            scheduleSessionEnd(sessionEnd - now);
+        }
+    }
+
+    protected void endSession() {
+        unscheduleSessionEnd();
+    }
+
+    /**
+     * Connects to FIX counter-party (in several attempts if necessary)
+     */
+    private void connect(boolean needPause) throws InterruptedException {
         if (needPause) {
             LOGGER.warn().append("FIX: will reconnect after short pause...").commit();
-            Thread.sleep(getSettings().getErrorRecoveryInterval());
+            timeSource.sleep(getSettings().getErrorRecoveryInterval());
         }
 
         assertSessionStatus(SessionStatus.Disconnected);
@@ -84,21 +138,22 @@ public class FixSessionInitiator extends FixSocketCommunicator {
         while (active && getSessionStatus() == SessionStatus.Disconnected) {
             try {
                 LOGGER.info().append("Connecting...").commit();
-                connect(new Socket (host, port));
-
+                connect(new Socket(host, port));
             } catch (ConnectException e) {
                 LOGGER.info().append("Server ").append(host).append(':').append(port).append(" is unreachable, will retry later").commit();
-                Thread.sleep(getSettings().getConnectInterval());
+                timeSource.sleep(getSettings().getConnectInterval());
             } catch (Throwable e) {
                 LOGGER.warn().append("Error connecting to server ").append(host).append(':').append(port).append(", will retry later").append(e).commit();
-                Thread.sleep(getSettings().getConnectInterval());
+                timeSource.sleep(getSettings().getConnectInterval());
             }
         }
-        assert getSessionStatus() == SessionStatus.SocketConnected;
+        assert getSessionStatus() == SessionStatus.SocketConnected; // TODO: may be false when active is set to false from close method
     }
 
-    /** Initiates a LOGON procedure */
-    private void logon () {
+    /**
+     * Initiates a LOGON procedure
+     */
+    private void logon() {
         LOGGER.info().append("Initiating FIX Logon").commit();
         try {
             assertSessionStatus(SessionStatus.SocketConnected);
@@ -108,6 +163,15 @@ public class FixSessionInitiator extends FixSocketCommunicator {
             LOGGER.warn().append("Error sending LOGON request, dropping connection").append(e).commit();
             disconnect("LOGON error");
         }
+    }
+
+    @Override
+    public void close() {
+        super.close();
+
+        Thread initiatorThread = this.initiatorThread;
+        if (initiatorThread != null)
+            initiatorThread.interrupt();
     }
 
 }
