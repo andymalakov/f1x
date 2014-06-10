@@ -329,6 +329,7 @@ public abstract class FixCommunicator implements FixSession {
         LOGGER.info().append("FIX Disconnect due to ").append(cause).commit();
 
         setSessionStatus(SessionStatus.Disconnected);
+        sessionState.setLastConnectionTimestamp(timeSource.currentTimeMillis());
         try {
             in.close();
             out.close();
