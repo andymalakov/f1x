@@ -131,7 +131,9 @@ public class Test_DefaultMessageParser {
                 case 11: assertEquals(TestUtils.parseUTCTimestamp("20121009-13:44:49.421"), parser.getUTCTimestampValue()); break;
                 case 12: assertEquals(TestUtils.parseUTCTimestamp("20121009-00:00:00.000"), parser.getUTCDateOnly()); break;
                 case 13: assertEquals(13*60*60000+ 44*60000 + 49*1000 +421, parser.getUTCTimeOnly()); break;
-                case 14: assertEquals("20121122", localDateFormat.format(new Date(parser.getLocalMktDate()))); break;
+                case 14:
+                    assertEquals("20121122", localDateFormat.format(new Date(parser.getLocalMktDate())));
+                    assertEquals(20121122, parser.getLocalMktDate2()); break;
                 case 15: parser.getByteSequence(array); assertEquals("RAW", array.toString()); break;
             }
         }

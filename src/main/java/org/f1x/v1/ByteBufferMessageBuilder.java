@@ -151,6 +151,17 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     }
 
     @Override
+    public void addLocalMktDate2(int tagNo, int yyyymmdd) {
+        offset = IntFormatter.format(tagNo, buffer, offset);
+        buffer[offset++] = '=';
+        offset = IntFormatter.format4digits(yyyymmdd / 10000, buffer, offset); // year
+        int mmdd = yyyymmdd % 10000;
+        offset = IntFormatter.format2digits(mmdd / 100, buffer, offset); // month
+        offset = IntFormatter.format2digits(mmdd % 100, buffer, offset); // day
+        buffer[offset++] = SOH;
+    }
+
+    @Override
     public void addUTCTimeOnly(int tagNo, long timestamp) {
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';

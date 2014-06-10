@@ -27,7 +27,8 @@ public final class InvalidFixMessageException extends Exception {
     public static final InvalidFixMessageException RESET_BELOW_CURRENT_SEQ_LARGE = new InvalidFixMessageException ("SequenceReset can only increase the sequence number");
     static final InvalidFixMessageException EXPECTING_LOGON_MESSAGE = new InvalidFixMessageException ("Application-level connection is not yet established (Unfinished LOGON)");
     public static final InvalidFixMessageException NO_MSG_SEQ_NUM = new InvalidFixMessageException("No MsgSeqNum(34) in message");
-    public static final InvalidFixMessageException INVALID_MSG_SEQ_NUM = new InvalidFixMessageException("MsgSeqNum(34) is invalid");
+    public static final InvalidFixMessageException MSG_SEQ_NUM_MUST_BE_ONE = new InvalidFixMessageException("Tag ResetSeqNum(141)=Y requires MsgSeqNum(34)=1");
+    public static final InvalidFixMessageException MSG_SEQ_NUM_MUST_BE_POSITIVE = new InvalidFixMessageException("MsgSeqNum(34) must be a positive number");
     public static final InvalidFixMessageException NO_HEARTBEAT_INTERVAL = new InvalidFixMessageException("No HeartBtInt(108)");
     public static final InvalidFixMessageException IN_SESSION_LOGON_MESSAGE_WITHOUT_MSG_SEQ_RESET_NOT_EXPECTED = new InvalidFixMessageException("Logon message without message sequence reset is not expected");
 

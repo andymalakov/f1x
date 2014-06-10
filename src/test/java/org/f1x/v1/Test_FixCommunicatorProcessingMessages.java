@@ -3,6 +3,7 @@ package org.f1x.v1;
 import org.f1x.SessionIDBean;
 import org.f1x.TestCommon;
 import org.f1x.api.message.MessageParser;
+import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionState;
@@ -22,6 +23,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Test_FixCommunicatorProcessingMessages extends TestCommon {
@@ -131,7 +133,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
         assertMessages(actualOutboundMessages, expectedOutboundMessages);
         assertNextSeqNums(1, 1);
-        assertErrorsOccurred(InvalidFixMessageException.INVALID_MSG_SEQ_NUM);
+        assertErrorsOccurred(InvalidFixMessageException.MSG_SEQ_NUM_MUST_BE_ONE);
         assertSessionStatusFlow(
                 SessionStatus.SocketConnected,
                 SessionStatus.Disconnected
@@ -200,13 +202,13 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     public void testLogonWithTargetSeqNumMoreExpected() {
         String inboundLogon = "8=FIX.4.4|9=64|35=A|34=5|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|108=30|10=020|";
         String expectedOutboundLogon = "8=FIX.4.4|9=84|35=A|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|98=0|108=30|141=N|383=8192|10=205|";
-        String expectedResendRequest = "8=FIX.4.4|9=66|35=2|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=5|10=084|";
+        String expectedResendRequest = "8=FIX.4.4|9=66|35=2|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=4|10=083|";
 
         setSessionStatus(SessionStatus.SocketConnected);
         String actualOutboundMessages = simulateProcessing(inboundLogon);
 
         assertMessages(actualOutboundMessages, expectedOutboundLogon, expectedResendRequest);
-        assertNextSeqNums(1, 3);
+        assertNextSeqNums(6, 3);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.SocketConnected,
@@ -237,13 +239,13 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     @Test
     public void testLogonResponseWithSeqNumMoreExpected() {
         String inboundLogon = "8=FIX.4.4|9=64|35=A|34=5|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|108=30|10=020|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=5|10=083|";
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=4|10=082|";
 
         setSessionStatus(SessionStatus.InitiatedLogon);
         String actualOutboundMessages = simulateProcessing(inboundLogon);
 
         assertMessages(actualOutboundMessages, expectedOutboundResendRequest);
-        assertNextSeqNums(1, 2);
+        assertNextSeqNums(6, 2);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.InitiatedLogon,
@@ -311,19 +313,19 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     @Test
     public void testLogoutWithSeqNumMoreExpected() {
         String inboundLogout = "8=FIX.4.4|9=57|35=5|34=5|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|10=020|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=5|10=083|";
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=4|10=082|";
         String expectedOutboundLogout = "8=FIX.4.4|9=89|35=5|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|58=Responding to Logout request|10=102|";
 
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundLogout);
 
         assertMessages(actualOutboundMessages, expectedOutboundResendRequest, expectedOutboundLogout);
-        assertNextSeqNums(1, 3);
+        assertNextSeqNums(6, 3);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
                 SessionStatus.InitiatedLogout,
-                SessionStatus.SocketConnected,
+                /// Per FIX spec we keep connection open to allow LOGOUT initiator to fill gaps// SessionStatus.SocketConnected,
                 SessionStatus.Disconnected
         );
     }
@@ -359,6 +361,78 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.InitiatedLogout,
+                SessionStatus.Disconnected
+        );
+    }
+
+    /** We initiated logout but other side detected a gap and requested resend before responding with LOGOUT */
+    @Test
+    public void testResendWhileLogout() {
+        String inboundResend = "8=FIX.4.4|9=66|35=2|34=2|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=1|16=0|10=136|"; // Pls resend 1...
+        String inboundLogout = "8=FIX.4.4|9=57|35=5|34=3|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|10=024|";
+
+        String expectedOutboundGapFill = "8=FIX.4.4|9=73|35=4|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=4|123=Y|10=217|"; // Gap fill [1..3]
+
+        setSessionStatus(SessionStatus.InitiatedLogout);
+        fillMessageStore(1, LOGON, HEARTBEAT, TEST_REQUEST); // Next SenderCompID=4
+        setNextSeqNums(2, 4);
+        String actualOutboundMessages = simulateProcessing(inboundResend, inboundLogout);
+
+        assertMessages(actualOutboundMessages, expectedOutboundGapFill);
+        assertNextSeqNums(4, 4);
+        assertNoErrorsOccurred();
+        assertSessionStatusFlow(
+                SessionStatus.InitiatedLogout,
+                SessionStatus.Disconnected
+        );
+    }
+
+    /** Same as above, but this time we have to resend REJECT */
+    @Test
+    public void testResendWhileLogout2() {
+        String inboundResend = "8=FIX.4.4|9=66|35=2|34=2|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=1|16=0|10=136|"; // Pls resend 1...
+        String inboundLogout = "8=FIX.4.4|9=57|35=5|34=3|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|10=024|";
+
+        String expectedOutboundGapFill1 =  "8=FIX.4.4|9=73|35=4|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=2|123=Y|10=215|"; // Gap fill [1..1]
+        String expectedRejectRebroadcast = "8=FIX.4.4|9=84|35=3|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=184|"; // REJECT
+        String expectedOutboundGapFill2 =  "8=FIX.4.4|9=73|35=4|34=3|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=4|123=Y|10=219|"; // Gap fill [3..3]
+
+        setSessionStatus(SessionStatus.InitiatedLogout);
+        fillMessageStore(1, LOGON, REJECT, TEST_REQUEST); // Next SenderCompID=4
+        setNextSeqNums(2, 4);
+        String actualOutboundMessages = simulateProcessing(inboundResend, inboundLogout);
+
+        assertMessages(actualOutboundMessages, expectedOutboundGapFill1, expectedRejectRebroadcast, expectedOutboundGapFill2);
+        assertNextSeqNums(4, 4);
+        assertNoErrorsOccurred();
+        assertSessionStatusFlow(
+                SessionStatus.InitiatedLogout,
+                SessionStatus.Disconnected
+        );
+    }
+
+
+    @Test
+    public void testMultipleGaps() {
+        String inboundLogon   = "8=FIX.4.4|9=84|35=A|34=1|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|98=0|108=30|141=N|383=8192|10=209|";
+        String inboundAppMsg1 = "8=FIX.4.4|9=107|35=h|34=10|49=SENDER|52=20140605-17:13:28.568|56=RECEIVER|335=242131811009569|336=SESS#1401988408564|340=2|10=152|";
+        String inboundAppMsg2 = "8=FIX.4.4|9=107|35=h|34=20|49=SENDER|52=20140605-17:13:28.568|56=RECEIVER|335=242131811009569|336=SESS#1401988408564|340=2|10=152|";
+
+        String expectedOutboundResend1 = "8=FIX.4.4|9=66|35=2|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=2|16=8|10=087|";
+        String expectedOutboundAppMsg1 = "8=FIX.4.4|9=57|35=0|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|10=210|";
+        String expectedOutboundResend2 = "8=FIX.4.4|9=68|35=2|34=3|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=11|16=18|10=188|";
+        String expectedOutboundAppMsg2 = "8=FIX.4.4|9=57|35=0|34=4|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|10=212|";
+
+        setSessionStatus(SessionStatus.InitiatedLogon);
+        setNextSeqNums(1, 1);
+        String actualOutboundMessages = simulateProcessing(inboundLogon, inboundAppMsg1, inboundAppMsg2);
+
+        assertMessages(actualOutboundMessages, expectedOutboundResend1, expectedOutboundAppMsg1, expectedOutboundResend2, expectedOutboundAppMsg2);
+        assertNextSeqNums(21, 5);
+        assertNoErrorsOccurred();
+        assertSessionStatusFlow(
+                SessionStatus.InitiatedLogon,
+                SessionStatus.ApplicationConnected,
                 SessionStatus.Disconnected
         );
     }
@@ -403,14 +477,14 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     @Test
     public void testHeartbeatWithSeqNumMoreExpected() {
         String inboundHeartbeat = "8=FIX.4.4|9=70|35=0|34=3|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST#123|10=024|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=2|16=3|10=083|";
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=2|16=2|10=082|";
 
         setNextSeqNums(2, 2);
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundHeartbeat);
 
         assertMessages(actualOutboundMessages, expectedOutboundResendRequest);
-        assertNextSeqNums(2, 3);
+        assertNextSeqNums(4, 3);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
@@ -440,7 +514,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testTestRequest() {
-        String inboundTestRequest = "8=FIX.4.4|9=67|35=1|34=2|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST123|10=245|";
+        String inboundTestRequest = "8=FIX.4.4|9=69|35=1|34=2|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST123|10=245|";
         String expectedOutboundHeartbeat = "8=FIX.4.4|9=69|35=0|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|112=TEST123|10=125|";
 
         setNextSeqNums(2, 2);
@@ -458,15 +532,15 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testTestRequestWithSeqNumMoreExpected() {
-        String inboundTestRequest = "8=FIX.4.4|9=67|35=1|34=5|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST123|10=245|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=2|16=5|10=085|";
+        String inboundTestRequest = "8=FIX.4.4|9=69|35=1|34=5|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST123|10=245|";
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=2|16=4|10=084|";
 
         setNextSeqNums(2, 2);
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundTestRequest);
 
         assertMessages(actualOutboundMessages, expectedOutboundResendRequest);
-        assertNextSeqNums(2, 3);
+        assertNextSeqNums(6, 3);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
@@ -476,7 +550,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testTestRequestWithSeqNumLessExpected() {
-        String inboundTestRequest = "8=FIX.4.4|9=67|35=1|34=1|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST123|10=245|";
+        String inboundTestRequest = "8=FIX.4.4|9=69|35=1|34=1|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|112=TEST123|10=245|";
         String expectedOutboundMessages = "";
 
         setNextSeqNums(5, 5);
@@ -532,7 +606,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testSequenceResetGapFill() {
-        String inboundTestRequest = "8=FIX.4.4|9=75|35=4|34=5|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=Y|36=100|123=Y|10=079|";
+        String inboundTestRequest = "8=FIX.4.4|9=75|35=4|34=5|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=N|36=100|123=Y|10=079|";
         String expectedOutboundMessages = "";
 
         setNextSeqNums(5, 5);
@@ -550,15 +624,33 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testSequenceResetGapFillWithSeqNumMoreExpected() {
-        String inboundTestRequest = "8=FIX.4.4|9=76|35=4|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=Y|36=100|123=Y|10=079|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=67|35=2|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=10|10=136|";
+        String inboundResetRequest = "8=FIX.4.4|9=76|35=4|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=N|36=100|123=Y|10=079|";
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=9|10=095|";
 
         setNextSeqNums(5, 5);
         setSessionStatus(SessionStatus.ApplicationConnected);
-        String actualOutboundMessages = simulateProcessing(inboundTestRequest);
+        String actualOutboundMessages = simulateProcessing(inboundResetRequest); // MsgSeqNum=10 instead of 5
 
         assertMessages(actualOutboundMessages, expectedOutboundResendRequest);
-        assertNextSeqNums(5, 6);
+        assertNextSeqNums(100, 6);
+        assertNoErrorsOccurred();
+        assertSessionStatusFlow(
+                SessionStatus.ApplicationConnected,
+                SessionStatus.Disconnected
+        );
+    }
+
+    /** Same as above but this time inbound RESEND marked as PossDupFlag=Y (we should ignore it) */
+    @Test
+    public void testSequenceResetGapFillWithSeqNumMoreExpectedPossDup() {
+        String inboundResetRequest = "8=FIX.4.4|9=76|35=4|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=Y|36=100|123=Y|10=079|";
+
+        setNextSeqNums(5, 5);
+        setSessionStatus(SessionStatus.ApplicationConnected);
+        String actualOutboundMessages = simulateProcessing(inboundResetRequest); // MsgSeqNum=10 instead of 5
+
+        assertMessages(actualOutboundMessages);
+        assertNextSeqNums(5, 5);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
@@ -568,12 +660,12 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testSequenceResetGapFillWithSeqNumLessExpected() {
-        String inboundTestRequest = "8=FIX.4.4|9=76|35=4|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=Y|36=100|123=Y|10=079|";
+        String inboundSeqResetGapFillRequest = "8=FIX.4.4|9=76|35=4|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|43=N|36=100|123=Y|10=079|";
         String expectedOutboundMessages = "";
 
         setNextSeqNums(15, 5);
         setSessionStatus(SessionStatus.ApplicationConnected);
-        String actualOutboundMessages = simulateProcessing(inboundTestRequest);
+        String actualOutboundMessages = simulateProcessing(inboundSeqResetGapFillRequest);
 
         assertMessages(actualOutboundMessages, expectedOutboundMessages);
         assertNextSeqNums(15, 5);
@@ -607,14 +699,14 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     @Test
     public void testRejectWithSeqNumMoreExpected() {
         String inboundTestRequest = "8=FIX.4.4|9=80|35=3|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|45=123|373=1|58=Cause|10=053|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=67|35=2|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=10|10=136|";
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=9|10=095|";
 
         setNextSeqNums(5, 5);
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundTestRequest);
 
         assertMessages(actualOutboundMessages, expectedOutboundResendRequest);
-        assertNextSeqNums(5, 6);
+        assertNextSeqNums(11, 6);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
@@ -663,14 +755,16 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     @Test
     public void testNewOrderWithSeqNumMoreExpected() {
         String inboundTestRequest = "8=FIX.4.4|9=80|35=D|34=10|49=SENDER|52=20140101-10:10:10.100|56=RECEIVER|45=123|373=1|58=Cause|10=053|";
-        String expectedOutboundResendRequest = "8=FIX.4.4|9=67|35=2|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=10|10=136|";
+
+        String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=8|10=094|";
+        String expectedOutboundTestResponse = "8=FIX.4.4|9=57|35=0|34=6|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|10=214|";
 
         setNextSeqNums(5, 5);
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundTestRequest);
 
-        assertMessages(actualOutboundMessages, expectedOutboundResendRequest);
-        assertNextSeqNums(5, 6);
+        assertMessages(actualOutboundMessages, expectedOutboundResendRequest, expectedOutboundTestResponse);
+        assertNextSeqNums(11, 7);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
@@ -725,7 +819,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testResendRequest() {
-        String inboundTestRequest = "8=FIX.4.4|9=66|35=2|34=5|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
+        String inboundTestRequest = "8=FIX.4.4|9=67|35=2|34=5|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
         String firstExpectedOutboundGapFill = "8=FIX.4.4|9=73|35=4|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=9|123=Y|10=226|";
         String expectedOutboundReject = "8=FIX.4.4|9=84|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=191|";
         String secondExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=10|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=11|123=Y|10=057|";
@@ -748,9 +842,44 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
         );
     }
 
+    /** In this test we receive LOGON immediately followed by an app message. Problem is that LOGON has higher than expected sequence number (a gap). Test ensures that we request single RESEND request */
+    @Test
+    public void testLogonPlusAppMessageAndMessageGap() {
+
+        // FIX Acceptor that we simulate always sends SessionStatus(35=h) right after LOGON
+        // Let's assume that during the PREVIOUS session Acceptor sent:
+        // 8=FIX.4.4|9=84|35=A|34=1|49=..
+        // 8=FIX.4.3|9=113|35=h|34=2|49=..
+        // 8=FIX.4.3|9=113|35=5|34=3|49=..
+
+        setNextSeqNums(3, 4); // We stored targetNext as 3 but they sent LOGOUT and actual nextTarget will be 4
+        setSessionStatus(SessionStatus.InitiatedLogon);
+        fillMessageStore(1, LOGON, TEST_REQUEST, LOGOUT);
+
+        // NEW SESSION
+        String inboundLogon         = "8=FIX.4.4|9=84|35=A|34=4|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|98=0|108=30|141=N|383=8192|10=209|";
+        String inboundSessionStatus = "8=FIX.4.4|9=106|35=h|34=5|49=SENDER|52=20140605-17:13:28.568|56=RECEIVER|335=242131811009569|336=SESS#1401988408564|340=2|10=152|";
+        String actualOutboundMessages = simulateProcessing(inboundLogon, inboundSessionStatus);
+        // assert state becomes ApplicationConnected
+
+        String expectedLogonConfirmation = "8=FIX.4.4|9=66|35=2|34=4|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=3|16=3|10=086|";
+        String expectedSessionStatResponse = "8=FIX.4.4|9=57|35=0|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|10=213|";
+
+        assertMessages(actualOutboundMessages, expectedLogonConfirmation, expectedSessionStatResponse);
+
+        assertNextSeqNums(6, 6);
+        assertNoErrorsOccurred();
+
+        assertSessionStatusFlow(
+                SessionStatus.InitiatedLogon,
+                SessionStatus.ApplicationConnected,
+                SessionStatus.Disconnected
+        );
+    }
+
     @Test
     public void testResendRequestWithSeqNumLessExpected() {
-        String inboundTestRequest = "8=FIX.4.4|9=66|35=2|34=2|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
+        String inboundTestRequest = "8=FIX.4.4|9=67|35=2|34=2|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
         String expectedOutboundMessages = "";
 
         setNextSeqNums(5, 25);
@@ -768,23 +897,23 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     @Test
     public void testResendRequestWithSeqNumMoreExpected() {
-        String inboundTestRequest = "8=FIX.4.4|9=66|35=2|34=9|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
+        String inboundResendRequest = "8=FIX.4.4|9=67|35=2|34=9|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
         String firstExpectedOutboundGapFill = "8=FIX.4.4|9=73|35=4|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=9|123=Y|10=226|";
         String expectedOutboundReject = "8=FIX.4.4|9=84|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=191|";
         String secondExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=10|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=11|123=Y|10=057|";
         String expectedOutboundNewOrder = "8=FIX.4.4|9=84|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|1=Account|11=OrderID|10=121|";
         String thirdExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=12|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=21|123=Y|10=060|";
-        String expectedResendRequest = "8=FIX.4.4|9=67|35=2|34=25|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=9|10=146|";
+        String expectedResendRequest = "8=FIX.4.4|9=67|35=2|34=25|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=8|10=145|";
 
         setNextSeqNums(5, 25);
         setSessionStatus(SessionStatus.ApplicationConnected);
         fillMessageStore(5, LOGON, HEARTBEAT, TEST_REQUEST, RESEND_REQUEST, REJECT, SEQUENCE_RESET, NEW_ORDER, LOGOUT);
-        String actualOutboundMessages = simulateProcessing(inboundTestRequest);
+        String actualOutboundMessages = simulateProcessing(inboundResendRequest);
 
         assertMessages(actualOutboundMessages, firstExpectedOutboundGapFill, expectedOutboundReject,
                 secondExpectedOutboundGapFill, expectedOutboundNewOrder, thirdExpectedOutboundGapFill, expectedResendRequest);
 
-        assertNextSeqNums(5, 26);
+        assertNextSeqNums(10, 26);
         assertNoErrorsOccurred();
         assertSessionStatusFlow(
                 SessionStatus.ApplicationConnected,
@@ -829,7 +958,8 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     }
 
     protected void assertSessionStatusFlow(SessionStatus... statuses) {
-        Assert.assertEquals("mismatching numbers of statuses", statuses.length, sessionStatusFlow.size());
+        if (statuses.length != sessionStatusFlow.size())
+            Assert.fail("Mismatching numbers of status transitions: expected " + Arrays.toString(statuses) + " actual " + sessionStatusFlow.toString() + "");
         for (int index = 0; index < statuses.length; index++)
             Assert.assertEquals("mismatching #" + index + " statuses", statuses[index], sessionStatusFlow.get(index));
     }
@@ -849,11 +979,26 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     protected String simulateProcessing(String... inboundMessages) {
         TextOutputChannel outputChannel = new TextOutputChannel() {
+
+            @Override
+            public void write(byte[] buffer, int offset, int length) throws IOException {
+                if (sb.length() > 0)
+                    sb.append('\n');
+                super.write(buffer, offset, length);
+            }
+
             @Override
             public void close() throws IOException {
                 // do not clear
             }
         };
+
+        for (int i = 0; i < inboundMessages.length; i++) {
+            String inboundMessage = inboundMessages[i];
+            int messageLength = findMessageLength(inboundMessage.replace('|', (char) 0x01));
+            Assert.assertEquals("BodyLen(9) specified in the message #" + i + " matches string size", messageLength, inboundMessage.length());
+        }
+
         communicator.connect(new PredefinedInputChannel(inboundMessages), outputChannel);
         communicator.processInboundMessages();
         return outputChannel.toString();
@@ -870,10 +1015,24 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
 
     private static String toString(String... messages) {
         StringBuilder builder = new StringBuilder(1024);
-        for (String message : messages)
+        for (String message : messages) {
+            if (builder.length() > 0)
+                builder.append('\n');
             builder.append(message);
-
+        }
         return builder.toString();
     }
 
+
+    private static int findMessageLength(String message) {
+        DefaultMessageParser parser = new DefaultMessageParser();
+        parser.set(AsciiUtils.getBytes(message), 0, message.length()); //Assuming ASCII
+        while (parser.next()) {
+            final int tagNum = parser.getTagNum();
+            if (tagNum == FixTags.BodyLength) {
+                return parser.getIntValue() + parser.getOffset() + FixCommunicator.CHECKSUM_LENGTH;
+            }
+        }
+        throw new IllegalArgumentException("Can't find BodyLength(9)");
+    }
 }
