@@ -613,27 +613,41 @@ public abstract class FixCommunicator implements FixSession {
             processed = false;
         }
         if ( ! processed)
-            processInboundAppMessage(msgType, msgSeqNumX, parser);
+            _processInboundAppMessage(msgType, msgSeqNumX, parser);
     }
 
-    protected void processInboundAppMessage(CharSequence msgType, int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
+    /**
+     * @param msgSeqNumX message sequence number (negative for messages that have PossDupFlag=Y).
+     */
+    private void _processInboundAppMessage(CharSequence msgType, int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
         LOGGER.debug().append("Processing inbound message with type: ").append(msgType).commit();
 
+        final boolean possDup;
         if (msgSeqNumX > 0) { // PossDupFlag=N
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
             if ( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) //Let's imagine we expected MsgSeqNum=5 but received 10
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX - 1);   //This will send ResendRequest(5, 0) and set currentResendEndSeqNo=9
 
             sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
+            possDup = false;
         } else {
             msgSeqNumX = -msgSeqNumX;
+            possDup = true;
         }
 
-        processInboundAppMessage(msgSeqNumX, msgType, parser); //TODO: Add parameter PossDupFlag = (msgSeqNum < 0)
+        processInboundAppMessage(msgType, msgSeqNumX, possDup, parser);
     }
 
-    protected void processInboundAppMessage(int msgSeqNum, CharSequence msgType, MessageParser parser) throws IOException {
-        // by default do nothing
+    /**
+     *
+     * @param msgType type of the message [tag MsgType(35)].
+     * @param msgSeqNum message sequence number [tag MsgSeqNum(34)].
+     * @param possDup <code>true</code> if this message is marked as a duplicate using tag PossDupFlag(43)
+     * @param parser
+     * @throws IOException
+     */
+    protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
+        assert msgSeqNum > 0; // by default do nothing
     }
 
     /**
