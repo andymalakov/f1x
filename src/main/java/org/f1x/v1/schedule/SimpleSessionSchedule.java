@@ -44,7 +44,7 @@ public class SimpleSessionSchedule implements SessionSchedule {
             throw new IllegalArgumentException("Start and End day of weeks must be specified together");
 
         if ( ! isDailySchedule && startDayOfWeek == -1)
-            throw new IllegalArgumentException("Daily schedule must have Start and End day of week defined");
+            throw new IllegalArgumentException("Weekly schedule must have Start and End day of week defined");
 
         if (tz == null)
             tz = TimeZone.getDefault();
@@ -55,32 +55,21 @@ public class SimpleSessionSchedule implements SessionSchedule {
     }
 
     @Override
-    public synchronized SessionTimes getCurrentSessionTimes(long currentTime) {
+    public SessionTimes getCurrentSessionTimes(long currentTime) {
 
         setMostRecentSessionBefore(currentTime);
 
         if (currentTime < end.getTimeInMillis()) {
             return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
-//
-//            // Session allowed currentTime
-//            boolean isNewSession = start.after(lastConnectionTimestamp);
-//            return (isNewSession) ? -end.getTimeInMillis() : end.getTimeInMillis();
         } else {
             // Session is over
             setNextSessionAfter(currentTime);
-//            return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
-//            long timeUntilNextSession = start.getTimeInMillis() - currentTime;
-//
-//            if (timeUntilNextSession > 0)
-//                timeSource.sleep(timeUntilNextSession);
-//
-//            return -end.getTimeInMillis(); // this is new session
         }
         return new SessionTimes(start.getTimeInMillis(), end.getTimeInMillis());
     }
 
     /** Sets start/end times of current session if it includes given timestamp or the most recent session if given timestamp is outside of this schedule */
-    protected void setMostRecentSessionBefore(long timestamp) { assert Thread.holdsLock(this); // using {start, end}
+    protected void setMostRecentSessionBefore(long timestamp) { //assert Thread.holdsLock(this); // using {start, end}
         start.setAndAdjust(timestamp);
         if (start.dayOfWeek != -1) {
             start.calendar.set(Calendar.DAY_OF_WEEK, start.dayOfWeek);
@@ -103,7 +92,7 @@ public class SimpleSessionSchedule implements SessionSchedule {
     }
 
     /** Sets start/end times to the next session (called ensures that given timestamp is outside of this schedule) */
-    protected void setNextSessionAfter(long timestamp) { assert Thread.holdsLock(this); // using {start, end}
+    protected void setNextSessionAfter(long timestamp) { //assert Thread.holdsLock(this); // using {start, end}
         start.setAndAdjust(timestamp);
 
         if (start.dayOfWeek != -1) {
@@ -148,42 +137,42 @@ public class SimpleSessionSchedule implements SessionSchedule {
         }
     }
 
-    protected void setNextSessionAfterOld(long timestamp) { assert Thread.holdsLock(this); // using {start, end}
-        end.setAndAdjust(timestamp);
-        if (end.dayOfWeek != -1) {
-            end.calendar.set(Calendar.DAY_OF_WEEK, end.dayOfWeek);
-            if (end.before(timestamp))
-                end.calendar.add(Calendar.WEEK_OF_YEAR, 1);
-
-            if (isDailySchedule) {
-                //int correctedDayOfWeek = (isEndTimeBeforeStartTimeOfDay) ? start.dayOfWeek + 1 : start.dayOfWeek; //TODO
-                //while (end.getTimeInMillis() >= timestamp && end.getDayOfWeek () < correctedDayOfWeek) {
-                while (end.notBefore(timestamp) && end.getDayOfWeek () < end.dayOfWeek) {
-                    end.calendar.add(Calendar.DAY_OF_YEAR, -1);
-                }
-                if (end.before(timestamp))
-                    end.calendar.add(Calendar.DAY_OF_YEAR, 1);
-            }
-        } else if (end.before(timestamp)) {
-            end.calendar.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        start.setAndAdjust(end.getTimeInMillis());
-        if (end.dayOfWeek != -1) {
-
-            if (isDailySchedule) {
-                if (start.notBefore(end))
-                    start.calendar.add(Calendar.DAY_OF_WEEK, -1);
-            } else {
-                start.calendar.set(Calendar.DAY_OF_WEEK, start.dayOfWeek);
-                if (start.notBefore(end)) {
-                    start.calendar.add(Calendar.WEEK_OF_MONTH, -1);
-                }
-            }
-        } else if (start.notBefore(end)) {
-            start.calendar.add(Calendar.DAY_OF_WEEK, -1);
-        }
-    }
+//    protected void setNextSessionAfterOld(long timestamp) { assert Thread.holdsLock(this); // using {start, end}
+//        end.setAndAdjust(timestamp);
+//        if (end.dayOfWeek != -1) {
+//            end.calendar.set(Calendar.DAY_OF_WEEK, end.dayOfWeek);
+//            if (end.before(timestamp))
+//                end.calendar.add(Calendar.WEEK_OF_YEAR, 1);
+//
+//            if (isDailySchedule) {
+//                //int correctedDayOfWeek = (isEndTimeBeforeStartTimeOfDay) ? start.dayOfWeek + 1 : start.dayOfWeek; //TODO
+//                //while (end.getTimeInMillis() >= timestamp && end.getDayOfWeek () < correctedDayOfWeek) {
+//                while (end.notBefore(timestamp) && end.getDayOfWeek () < end.dayOfWeek) {
+//                    end.calendar.add(Calendar.DAY_OF_YEAR, -1);
+//                }
+//                if (end.before(timestamp))
+//                    end.calendar.add(Calendar.DAY_OF_YEAR, 1);
+//            }
+//        } else if (end.before(timestamp)) {
+//            end.calendar.add(Calendar.DAY_OF_YEAR, 1);
+//        }
+//
+//        start.setAndAdjust(end.getTimeInMillis());
+//        if (end.dayOfWeek != -1) {
+//
+//            if (isDailySchedule) {
+//                if (start.notBefore(end))
+//                    start.calendar.add(Calendar.DAY_OF_WEEK, -1);
+//            } else {
+//                start.calendar.set(Calendar.DAY_OF_WEEK, start.dayOfWeek);
+//                if (start.notBefore(end)) {
+//                    start.calendar.add(Calendar.WEEK_OF_MONTH, -1);
+//                }
+//            }
+//        } else if (start.notBefore(end)) {
+//            start.calendar.add(Calendar.DAY_OF_WEEK, -1);
+//        }
+//    }
 
 
     @Override

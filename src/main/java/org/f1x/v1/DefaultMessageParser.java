@@ -32,16 +32,18 @@ public class DefaultMessageParser implements MessageParser {
     private final ByteArrayReference charSequenceBuffer = new ByteArrayReference();
 
     private byte[] buffer;
+    private int start;
     private int offset; // next byte to read
     private int limit;
     private int tagNum;
     private int valueOffset, valueLength;
 
 
-    public void set (byte [] buffer, int offset, int length) {
+    public final void set (byte [] buffer, int offset, int length) {
         this.buffer = buffer;
-        this.offset = offset;
+        this.start = offset;
         this.limit = offset + length;
+        reset();
     }
 
     @Override
@@ -52,8 +54,6 @@ public class DefaultMessageParser implements MessageParser {
                 if (valueLength == 0)
                     throw new FixParserException("Tag " + tagNum + " has empty value at position " + offset);
 
-//                if (tagNum == FixTags.MsgSeqNum)
-//                    validateSequenceNumber(getIntegerValue());
             }
             return result;
 
@@ -192,7 +192,11 @@ public class DefaultMessageParser implements MessageParser {
         return true;
     }
 
-
+    @Override
+    public final void reset() {
+        tagNum = valueOffset = valueLength = 0;
+        offset = start;
+    }
 
     int getOffset() {
         return offset; //TODO: Refactor this class so that we won't need this method

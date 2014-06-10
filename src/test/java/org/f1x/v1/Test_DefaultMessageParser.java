@@ -108,7 +108,7 @@ public class Test_DefaultMessageParser {
         byte [] buffer = new byte[mb.getLength()];
         mb.output(buffer, 0);
 
-        Assert.assertEquals("1=ABC|2=123|3=123|4=3.14159|5=x|6=Y|7=N|8=1|9=3|10=B|11=20121009-13:44:49.421|12=20121009|13=13:44:49.421|14=20121122|15=RAW|", new String(buffer).replace('\u0001', '|'));
+        assertMessageEquals("1=ABC|2=123|3=123|4=3.14159|5=x|6=Y|7=N|8=1|9=3|10=B|11=20121009-13:44:49.421|12=20121009|13=13:44:49.421|14=20121122|15=RAW|", new String(buffer));
 
         DefaultMessageParser parser = new DefaultMessageParser();
         parser.set(buffer, 0, buffer.length);
@@ -137,8 +137,33 @@ public class Test_DefaultMessageParser {
                 case 15: parser.getByteSequence(array); assertEquals("RAW", array.toString()); break;
             }
         }
-
     }
+
+    @Test
+    public void testReset () throws ParseException {
+        MessageBuilder mb = new ByteBufferMessageBuilder(256, 5);
+        mb.add(1, "ABC");
+        mb.add(2, 123L);
+        byte [] buffer = new byte[mb.getLength()];
+        mb.output(buffer, 0);
+
+        String expectedMessage = "1=ABC|2=123|";
+
+        assertMessageEquals(expectedMessage, new String(buffer));
+
+        DefaultMessageParser parser = new DefaultMessageParser();
+        parser.set(buffer, 0, buffer.length);
+
+        String parsedMessage = MessageParser2String.convert(parser);
+        assertMessageEquals(expectedMessage, parsedMessage);
+
+        parser.reset();
+        parsedMessage = MessageParser2String.convert(parser);
+        assertMessageEquals(expectedMessage, parsedMessage);
+    }
+
+
+
 
     private void parseTag (String message, int tagNo) {
         byte [] messageBytes = message.getBytes();
@@ -149,7 +174,10 @@ public class Test_DefaultMessageParser {
                 return;
         }
         Assert.fail("Tag " + tagNo + " is not found");
+    }
 
+    private static void assertMessageEquals(String expected, String actual) {
+        Assert.assertEquals("Message equals", expected, actual.replace('\u0001', '|'));
     }
 
     private void assertParser(String message) {

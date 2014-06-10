@@ -67,6 +67,9 @@ public interface MessageParser {
     /** @return true if value of the last processed tag equals to given byte array */
     boolean isValueEquals(byte[] constant);
 
+    /** Restarts parsing current message from the beginning */
+    void reset();
+
 }
 
 
