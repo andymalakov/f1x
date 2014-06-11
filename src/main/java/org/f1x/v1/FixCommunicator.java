@@ -948,12 +948,6 @@ public abstract class FixCommunicator implements FixSession {
     private void processInboundSequenceReset(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
         LOGGER.debug().append("Processing inbound Sequence Reset").commit();
 
-        if (msgSeqNumX < 0) {
-            // Normal for gap fill to have PossDupFlag=Y
-            LOGGER.info().append("Received RESET message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
-            return;
-        }
-
         boolean isGapFill = false;
         int newSeqNum = -1;
         while (parser.next()) {
@@ -965,6 +959,15 @@ public abstract class FixCommunicator implements FixSession {
                     isGapFill = parser.getBooleanValue();
                     break;
             }
+        }
+
+        if (msgSeqNumX < 0) {
+            // Normal for gap fill to have PossDupFlag=Y
+            if (isGapFill)
+                LOGGER.debug().append("Ignoring GapFill from").append(-msgSeqNumX).append(" to ").append(newSeqNum).commit();
+            else
+                LOGGER.info().append("Received RESET message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            return;
         }
 
         LOGGER.info().append("Processing inbound message sequence reset to ").append(newSeqNum).commit();
