@@ -96,6 +96,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
     protected void startSession(boolean needPause) throws InterruptedException {
         waitForSessionStart();
+        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
         connect(needPause);
         logon();
     }
@@ -122,6 +123,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
     protected void endSession() {
         unscheduleSessionEnd();
+        unscheduleSessionMonitoring();
     }
 
     /**

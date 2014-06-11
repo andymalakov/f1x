@@ -97,6 +97,8 @@ public abstract class FixCommunicator implements FixSession {
 
     private final Object sendLock = new Object();
 
+    protected TimerTask sessionMonitoringTask;
+
     public FixCommunicator (FixVersion fixVersion, FixSettings settings) {
         this(fixVersion, settings, RealTimeSource.INSTANCE);
     }
@@ -115,7 +117,7 @@ public abstract class FixCommunicator implements FixSession {
 
         sessionMessageBuilder = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
         messageBuilderForResend = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
-        messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), timeSource);
+        messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize());
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
         messageBufferForResend = new byte[settings.getMaxOutboundMessageSize()];
         this.timeSource = timeSource;
@@ -329,7 +331,8 @@ public abstract class FixCommunicator implements FixSession {
         LOGGER.info().append("FIX Disconnect due to ").append(cause).commit();
 
         setSessionStatus(SessionStatus.Disconnected);
-        sessionState.setLastConnectionTimestamp(timeSource.currentTimeMillis());
+        long now = timeSource.currentTimeMillis();
+        sessionState.setLastConnectionTimestamp(now);
         try {
             in.close();
             out.close();
@@ -365,17 +368,21 @@ public abstract class FixCommunicator implements FixSession {
      */
     @Override
     public void send(MessageBuilder messageBuilder) throws IOException {
-        synchronized (sendLock) {
-            messageAssembler.send(getSessionID(), sessionState.consumeNextSenderSeqNum(), messageBuilder, messageStore, out);
-        }
+        send0(sessionState.consumeNextSenderSeqNum(), messageBuilder, messageStore);
     }
 
     /**
      * Resends a message with given msg seq num, this message is not persisted in message store.
      */
     protected void resend(MessageBuilder messageBuilder, int msgSeqNum) throws IOException {
-        synchronized (sendLock){
-            messageAssembler.send(getSessionID(), msgSeqNum, messageBuilder, null, out);
+        send0(msgSeqNum, messageBuilder, null);
+    }
+
+    protected void send0(int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore) throws IOException {
+        synchronized (sendLock) {
+            long now = timeSource.currentTimeMillis();
+            sessionState.setLastSentMessageTimestamp(now);
+            messageAssembler.send(getSessionID(), msgSeqNum, messageBuilder, messageStore, now, out);
         }
     }
 
@@ -560,6 +567,9 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void processInboundMessage(MessageParser parser, CharSequence msgType, int msgSeqNumX) throws IOException, InvalidFixMessageException, ConnectionProblemException {
+        long now = timeSource.currentTimeMillis();
+        sessionState.setLastReceivedMessageTimestamp(now); // TODO: maybe extract from message SendingTime(52) field;
+
         SessionStatus currentStatus = getSessionStatus();
         switch (currentStatus) {
             case ApplicationConnected:
@@ -1031,6 +1041,26 @@ public abstract class FixCommunicator implements FixSession {
         if (sessionEndTask != null) {
             sessionEndTask.cancel();
             sessionEndTask = null;
+        }
+    }
+
+    SessionState getSessionState() {
+        return sessionState;
+    }
+
+    TimeSource getTimeSource() {
+        return timeSource;
+    }
+
+    protected void scheduleSessionMonitoring(long period){
+         sessionMonitoringTask = new SessionMonitoringTask(this);
+         GlobalTimer.getInstance().schedule(sessionMonitoringTask, period, period);
+    }
+
+    protected void unscheduleSessionMonitoring() {
+        if (sessionMonitoringTask != null) {
+            sessionMonitoringTask.cancel();
+            sessionMonitoringTask = null;
         }
     }
 

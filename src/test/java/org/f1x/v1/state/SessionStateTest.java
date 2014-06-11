@@ -74,10 +74,32 @@ public abstract class SessionStateTest {
     }
 
     @Test
+    public void testLastReceivedMessageTimestamp() {
+        Assert.assertEquals(-1, sessionState.getLastReceivedMessageTimestamp());
+
+        for (int value = 1; value < 2000; value++) {
+            sessionState.setLastReceivedMessageTimestamp(value);
+            Assert.assertEquals(value, sessionState.getLastReceivedMessageTimestamp());
+        }
+    }
+
+    @Test
+    public void testLastSentMessageTimestamp() {
+        Assert.assertEquals(-1, sessionState.getLastSentMessageTimestamp());
+
+        for (int value = 1; value < 2000; value++) {
+            sessionState.setLastSentMessageTimestamp(value);
+            Assert.assertEquals(value, sessionState.getLastSentMessageTimestamp());
+        }
+    }
+
+    @Test
     public void testAllInOne() throws InvalidFixMessageException {
         testLastLogonTimestamp();
         testNextSenderSeqNum();
         testNextTargetSeqNum();
+        testLastReceivedMessageTimestamp();
+        testLastSentMessageTimestamp();
     }
 
     @After

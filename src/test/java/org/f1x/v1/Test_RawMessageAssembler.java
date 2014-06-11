@@ -67,9 +67,9 @@ public class Test_RawMessageAssembler {
 
 
     private static String format (MessageBuilder mb, SessionID sessionID, int msgSeqNum, String time) throws IOException {
-        RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, StoredTimeSource.makeFromUTCTimestamp(time));
+        RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256);
         TextOutputChannel text = new TextOutputChannel();
-        asm.send(sessionID, msgSeqNum, mb, null, text);
+        asm.send(sessionID, msgSeqNum, mb, null, TestUtils.parseUTCTimestamp(time), text);
         return text.toString();
     }
 

@@ -41,7 +41,7 @@ public class Test_EncodingNewOrderSingle {
     @Test
     public void testTinyFIXEncoding() throws IOException {
         MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
-        RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, RealTimeSource.INSTANCE);
+        RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256);
         SessionID sessionID = new SessionIDBean(SENDER_COMP_ID, SENDER_SUB_ID, TARGET_COMP_ID, TARGET_SUB_ID);
         NullOutputChannel out = new NullOutputChannel();
 
@@ -122,7 +122,7 @@ public class Test_EncodingNewOrderSingle {
         mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
         mb.add(FixTags.SecurityDesc, SECURITY_DESCRIPTION);
         mb.add(FixTags.SecurityType, SecurityType.OPTION);
-        asm.send(sessionID, MSG_SEQ_NUM, mb, null, out);
+        asm.send(sessionID, MSG_SEQ_NUM, mb, null, RealTimeSource.INSTANCE.currentTimeMillis(), out);
     }
 
     public static void main(String[] args) throws InvalidMessage, IOException {
@@ -140,7 +140,7 @@ public class Test_EncodingNewOrderSingle {
                 break;
             case 2:
                 MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
-                RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256, RealTimeSource.INSTANCE);
+                RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256);
                 SessionID sessionID = new SessionIDBean(SENDER_COMP_ID, SENDER_SUB_ID, TARGET_COMP_ID, TARGET_SUB_ID);
                 NullOutputChannel out = new NullOutputChannel();
                 for (int i = 0; i < iterations; i++)
