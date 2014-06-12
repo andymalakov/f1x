@@ -18,7 +18,6 @@ public class FixInitiatorSettings extends FixSettings {
     private long connectInterval = 15000;
     private long logonInterval = 5000;
     private long errorRecoveryInterval = 5000;
-    private boolean isResetSequenceNumbers = true;
 
     public long getConnectInterval() {
         return connectInterval;
@@ -44,11 +43,4 @@ public class FixInitiatorSettings extends FixSettings {
         this.errorRecoveryInterval = errorRecoveryInterval;
     }
 
-    public boolean isResetSequenceNumbers() {
-        return isResetSequenceNumbers;
-    }
-
-    public void setResetSequenceNumbers(boolean resetSequenceNumbers) {
-        isResetSequenceNumbers = resetSequenceNumbers;
-    }
 }
