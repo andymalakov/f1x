@@ -95,30 +95,37 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     }
 
     protected void startSession(boolean needPause) throws InterruptedException {
-        waitForSessionStart();
-        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
+        boolean newFixSession = waitForSessionStart();
         connect(needPause);
-        logon();
+        if (newFixSession)
+            sessionState.resetNextSeqNums();
+        logon(newFixSession);
+        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
     }
 
-    private void waitForSessionStart() throws InterruptedException {
+    private boolean waitForSessionStart() throws InterruptedException {
+        boolean newFixSession = false;
         if (schedule != null) {
             long now = timeSource.currentTimeMillis();
 
             SessionTimes sessionTimes = schedule.getCurrentSessionTimes(now);
             final long sessionStart = sessionTimes.getStart();
-            if (now < sessionStart) {
+            long timeToWaitUntilNextSession = sessionStart - now;
+            if (timeToWaitUntilNextSession > 0) {
+                LOGGER.info().append("Waiting ").append(timeToWaitUntilNextSession/1000).append(" seconds until next FIX Session").commit();
                 timeSource.sleep(sessionStart - now);
                 now = sessionStart;
             }
 
             final long lastConnectionTime = sessionState.getLastConnectionTimestamp();
-            if (lastConnectionTime < sessionStart)
-                sessionState.resetNextSeqNums();
+            if (lastConnectionTime < sessionStart) {
+                newFixSession = true;
+            }
 
             final long sessionEnd = sessionTimes.getEnd();
             scheduleSessionEnd(sessionEnd - now);
         }
+        return newFixSession;
     }
 
     protected void endSession() {
@@ -154,12 +161,13 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
     /**
      * Initiates a LOGON procedure
+     * @param newFixSession true at the beginning of new session (will cause sequence number reset)
      */
-    private void logon() {
+    private void logon(boolean newFixSession) {
         LOGGER.info().append("Initiating FIX Logon").commit();
         try {
             assertSessionStatus(SessionStatus.SocketConnected);
-            sendLogon(getSettings().isResetSequenceNumbers());
+            sendLogon(newFixSession || getSettings().isResetSequenceNumbersOnEachLogon());
             setSessionStatus(SessionStatus.InitiatedLogon);
         } catch (Throwable e) {
             LOGGER.warn().append("Error sending LOGON request, dropping connection").append(e).commit();

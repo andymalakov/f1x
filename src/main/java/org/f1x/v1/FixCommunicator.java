@@ -68,7 +68,7 @@ public abstract class FixCommunicator implements FixSession {
     private InputChannel in;
     private OutputChannel out;
 
-    private MessageStore messageStore;
+    protected MessageStore messageStore;
     protected SessionSchedule schedule;
 
     // used by receiver thread only
@@ -160,6 +160,10 @@ public abstract class FixCommunicator implements FixSession {
 
     public void setSessionSchedule(SessionSchedule schedule) {
         this.schedule = schedule;
+        if (schedule != null)
+            LOGGER.info().append("Session ").append(getSessionID()).append(" schedule: ").append(schedule).commit();
+        else
+            LOGGER.info().append("Session ").append(getSessionID()).append(" will have 'run-forever' schedule").commit();
     }
 
     protected void setSessionStatus(SessionStatus status) {
@@ -386,24 +390,30 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    protected void sendLogon(boolean resetSequenceNumbers) throws IOException {
-        if ( ! resetSequenceNumbers)
-            resetSequenceNumbers = settings.isResetSequenceNumbersOnEachLogon();
+    /** Convenience method for <pre>sendLogon(getFixSettings().isResetSequenceNumbersOnEachLogon())</pre> */
+    protected void sendLogon() throws IOException {
+        sendLogon(settings.isResetSequenceNumbersOnEachLogon());
+    }
+
+    /** @param forceResetSequenceNumbers pass true to force sequence numbers reset, otherwise implementation will rely on {@link org.f1x.api.FixSettings#isResetSequenceNumbersOnEachLogon()} */
+    protected void sendLogon(boolean forceResetSequenceNumbers) throws IOException {
+        if ( ! forceResetSequenceNumbers)
+            forceResetSequenceNumbers = settings.isResetSequenceNumbersOnEachLogon();
 
         synchronized (sessionMessageBuilder) {
             sessionMessageBuilder.clear();
             sessionMessageBuilder.setMessageType(MsgType.LOGON);
             sessionMessageBuilder.add(FixTags.EncryptMethod, EncryptMethod.NONE_OTHER);
             sessionMessageBuilder.add(FixTags.HeartBtInt, settings.getHeartBeatIntervalSec());
-            sessionMessageBuilder.add(FixTags.ResetSeqNumFlag, resetSequenceNumbers);
+            sessionMessageBuilder.add(FixTags.ResetSeqNumFlag, forceResetSequenceNumbers);
 
-            if (settings.isLogonWithNextExpectedMsgSeqNum()) {
+            if (settings.isLogonWithNextExpectedMsgSeqNum())
                 sessionMessageBuilder.add(FixTags.NextExpectedMsgSeqNum, sessionState.getNextTargetSeqNum());
-            }
+
             sessionMessageBuilder.add(FixTags.MaxMessageSize, settings.getMaxInboundMessageSize());
 
             synchronized (sendLock) {
-                if (resetSequenceNumbers) {
+                if (forceResetSequenceNumbers) {
                     sessionState.setNextSenderSeqNum(1);
                     messageStore.clean();
                 }
@@ -684,8 +694,9 @@ public abstract class FixCommunicator implements FixSession {
                     break;
                 case FixTags.ResetSeqNumFlag:
                     resetSeqNum = parser.getBooleanValue();
-                    if(resetSeqNum && msgSeqNumX != 1)
-                       throw InvalidFixMessageException.MSG_SEQ_NUM_MUST_BE_ONE;
+                    //if (getSessionStatus() != SessionStatus.ApplicationConnected) // Unless we are dealing with In-Session sequence reset
+                        if(resetSeqNum && msgSeqNumX != 1)
+                           throw InvalidFixMessageException.MSG_SEQ_NUM_MUST_BE_ONE;
 
                     break;
             }
@@ -695,7 +706,7 @@ public abstract class FixCommunicator implements FixSession {
             throw InvalidFixMessageException.NO_HEARTBEAT_INTERVAL;
 
         if (resetSeqNum)
-            sessionState.setNextTargetSeqNum(1);
+            sessionState.setNextTargetSeqNum(1); //TODO: This is wrong 141=Y means that both sides should reset sequence numbers
 
         SessionStatus currentStatus = getSessionStatus();
         if (currentStatus == SessionStatus.ApplicationConnected && !resetSeqNum)
@@ -1032,11 +1043,13 @@ public abstract class FixCommunicator implements FixSession {
 
     }
 
+    /** Schedules a timer to finish current FIX session according to FIX Session Schedule */
     protected void scheduleSessionEnd(long timeout) {
         sessionEndTask = new SessionEndTask(this);
         GlobalTimer.getInstance().schedule(sessionEndTask, timeout);
     }
 
+    /** Cancels a timer that was defined to finish current FIX session (if defined) */
     protected void unscheduleSessionEnd() {
         if (sessionEndTask != null) {
             sessionEndTask.cancel();

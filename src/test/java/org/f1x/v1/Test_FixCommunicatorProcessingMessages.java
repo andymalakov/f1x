@@ -16,10 +16,7 @@ import org.f1x.util.AsciiUtils;
 import org.f1x.util.StoredTimeSource;
 import org.f1x.util.TimeSource;
 import org.f1x.v1.state.TestSessionState;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -236,6 +233,27 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
         );
     }
 
+    /** Same as above but acceptor responds with LOGON that has 141=Y */
+    @Ignore
+    @Test
+    public void testLogonResponseResetSequenceNumbers() {
+        String inboundLogon = "8=FIX.4.4|9=70|35=A|34=1|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|141=Y|108=30|10=020|";
+        String expectedOutboundMessages = "";
+
+        setNextSeqNums(100, 100);
+        setSessionStatus(SessionStatus.InitiatedLogon);
+        String actualOutboundMessages = simulateProcessing(inboundLogon);
+
+        assertMessages(actualOutboundMessages, expectedOutboundMessages);
+        assertNextSeqNums(2, 2); // TODO: Validate in the spec
+        assertNoErrorsOccurred();
+        assertSessionStatusFlow(
+                SessionStatus.InitiatedLogon,
+                SessionStatus.ApplicationConnected,
+                SessionStatus.Disconnected
+        );
+    }
+
     @Test
     public void testLogonResponseWithSeqNumMoreExpected() {
         String inboundLogon = "8=FIX.4.4|9=64|35=A|34=5|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|108=30|10=020|";
@@ -271,13 +289,17 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
         );
     }
 
+    /** This test verifies that system is capable of initiating a sequence number reset during an existing FIX session */
     @Test
-    public void testInSessionLogon() {
-        String inboundLogon = "8=FIX.4.4|9=70|35=A|34=1|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|108=30|141=Y|10=020|";
-        String expectedOutboundLogon = "8=FIX.4.4|9=84|35=A|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|98=0|108=30|141=Y|383=8192|10=216|";
+    public void testInSessionSequenceNumberResetViaLOGON() {
 
         setNextSeqNums(100, 100);
         setSessionStatus(SessionStatus.ApplicationConnected);
+
+        // Once the Heartbeat has been received, the initiator should send a Logon with ResetSeqNumFlag set to Y and with MsgSeqNum of 1.
+        // The acceptor should respond with a Logon with ResetSeqNumFlag set to Y and with MsgSeqNum of 1.
+        String inboundLogon =          "8=FIX.4.4|9=70|35=A|34=1|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|108=30|141=Y|10=020|";
+        String expectedOutboundLogon = "8=FIX.4.4|9=84|35=A|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|98=0|108=30|141=Y|383=8192|10=216|";
         String actualOutboundMessages = simulateProcessing(inboundLogon);
 
         assertMessages(actualOutboundMessages, expectedOutboundLogon);
@@ -288,6 +310,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
                 SessionStatus.Disconnected
         );
     }
+
 
     // ---------- LOGOUT ----------
 
