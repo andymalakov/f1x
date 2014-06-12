@@ -15,9 +15,8 @@ package org.f1x.api;
 
 import org.f1x.v1.SocketOptions;
 
+/** Defines FIX configuration parameter common for FIX Initiator and FIX Acceptor */
 public class FixSettings extends SocketOptions {
-//    private boolean logInboundMessages = false;
-//    private boolean logOutboundMessages = false;
 
     /** Max buffer size for outbound message assembler */
     private int maxOutboundMessageSize = 2048;
@@ -30,9 +29,15 @@ public class FixSettings extends SocketOptions {
     /** FIX Heartbeat interval in seconds */
     private int heartBeatIntervalSec = 30;
 
+    /** Directory where FIX Log files will be stored */
     private String logDirectory;
+
+    /** When <code>true</code> each LOGON will be sent with ResetSeqNum(141)=Y and sequence numbers/message store will be reset at the beginning of each connection */
     private boolean resetSequenceNumbersOnEachLogon;
+
+    /** FIX 4.4 Has new mechanism to synchronize sequence numbers using tag NextExpectedMsgSeqNum(789). When this flag is enabled, tag NextExpectedMsgSeqNum(789) will be transmitted FIX Logon message */
     private boolean logonWithNextExpectedMsgSeqNum;
+
 
     /** Max buffer size for inbound message (used by Socket read) */
     public int getMaxInboundMessageSize() {
@@ -54,22 +59,6 @@ public class FixSettings extends SocketOptions {
     }
 
 
-//    public boolean isLogInboundMessages() {
-//        return logInboundMessages;
-//    }
-//
-//    public void setLogInboundMessages(boolean logInboundMessages) {
-//        this.logInboundMessages = logInboundMessages;
-//    }
-//
-//    public boolean isLogOutboundMessages() {
-//        return logOutboundMessages;
-//    }
-//
-//    public void setLogOutboundMessages(boolean logOutboundMessages) {
-//        this.logOutboundMessages = logOutboundMessages;
-//    }
-
     /** Defines how floating point numbers will be formatted in FIX messages. This parameter sets maximum number of digits after decimal point (e.g. 3). Truncated part will be rounded. */
     public int getDoubleFormatterPrecision() {
         return doubleFormatterPrecision;
@@ -79,6 +68,7 @@ public class FixSettings extends SocketOptions {
         this.doubleFormatterPrecision = doubleFormatterPrecision;
     }
 
+    /** Directory where FIX Log files will be stored */
     public String getLogDirectory() {
         return logDirectory;
     }
@@ -87,7 +77,7 @@ public class FixSettings extends SocketOptions {
         this.logDirectory = logDirectory;
     }
 
-    /** FIX Heartbeat interval in seconds */
+    /** FIX Heartbeat interval in seconds (Default is 30) */
     public int getHeartBeatIntervalSec() {
         return heartBeatIntervalSec;
     }
@@ -96,6 +86,7 @@ public class FixSettings extends SocketOptions {
         this.heartBeatIntervalSec = heartBeatIntervalSec;
     }
 
+    /** When <code>true</code> each LOGON will be sent with ResetSeqNum(141)=Y and sequence numbers/message store will be reset at the beginning of each connection */
     public boolean isResetSequenceNumbersOnEachLogon() {
         return resetSequenceNumbersOnEachLogon;
     }
