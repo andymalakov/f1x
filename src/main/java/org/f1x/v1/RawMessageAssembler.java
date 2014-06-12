@@ -43,24 +43,21 @@ import java.io.IOException;
  */
 final class RawMessageAssembler {
 
-    private static final GFLog LOGGER = GFLogFactory.getLog(RawMessageAssembler.class);
     private final static byte SOH = 1;
 
     private final TimestampFormatter timestampFormatter = TimestampFormatter.createUTCTimestampFormatter();  //TODO Reuse instance kept by MessageBuilder?
     private final byte [] BEGIN_STRING;
 
     private final byte [] buffer;
-    private final TimeSource timeSource;
 
-    RawMessageAssembler(FixVersion version, int maxMessageSize, TimeSource timeSource) {
-        this.timeSource = timeSource;
+    RawMessageAssembler(FixVersion version, int maxMessageSize) {
         buffer = new byte[maxMessageSize];
 
         BEGIN_STRING = AsciiUtils.getBytes("" + FixTags.BeginString + '=' + version.getBeginString() + (char) SOH);
         System.arraycopy(BEGIN_STRING, 0, buffer, 0, BEGIN_STRING.length);
     }
 
-    void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore, OutputChannel out) throws IOException {
+    void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore, long sendingTime,  OutputChannel out) throws IOException {
         int offset = BEGIN_STRING.length;
 
         final CharSequence msgType = messageBuilder.getMessageType();
@@ -88,7 +85,7 @@ final class RawMessageAssembler {
         offset = setTextField(FixTags.SenderCompID, sessionID.getSenderCompId(), buffer, offset);
         if (senderSubId != null)
             offset = setTextField(FixTags.SenderSubID, senderSubId, buffer, offset);
-        offset = setUtcTimestampField(FixTags.SendingTime, timeSource.currentTimeMillis(), buffer, offset);
+        offset = setUtcTimestampField(FixTags.SendingTime, sendingTime, buffer, offset);
         offset = setTextField(FixTags.TargetCompID, sessionID.getTargetCompId(), buffer, offset);
         if (targetSubId != null)
             offset = setTextField(FixTags.TargetSubID, targetSubId, buffer, offset);

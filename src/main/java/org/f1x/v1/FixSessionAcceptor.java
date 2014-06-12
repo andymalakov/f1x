@@ -122,11 +122,14 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
             scheduleSessionEnd(sessionEnd - now);
         }
 
+        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
+
         return true;
     }
 
     protected void endSession() {
         unscheduleSessionEnd();
+        unscheduleSessionMonitoring();
     }
 
     private static void checkLogonBuffer(byte[] logonBuffer, int length) {

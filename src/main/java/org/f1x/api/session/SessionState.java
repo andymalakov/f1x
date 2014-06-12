@@ -20,10 +20,13 @@ import org.f1x.v1.InvalidFixMessageException;
  */
 public interface SessionState {
 
+    /**
+     * @param newValue time in milliseconds
+     */
     void setLastConnectionTimestamp(long newValue);
 
     /**
-     * @return last logon timestamp or -1 if unknown
+     * @return time in milliseconds (-1 if unknown)
      */
     long getLastConnectionTimestamp();
 
@@ -44,5 +47,26 @@ public interface SessionState {
     void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException;
 
     void resetNextSeqNums();
+
+
+    /**
+     * @param newValue time in milliseconds
+     */
+    void setLastReceivedMessageTimestamp(long newValue);
+
+    /**
+     * @return time in milliseconds (-1 if unknown)
+     */
+    long getLastReceivedMessageTimestamp();
+
+    /**
+     * @param newValue time in milliseconds
+     */
+    void setLastSentMessageTimestamp(long newValue);
+
+    /**
+     * @return time in milliseconds (-1 if unknown)
+     */
+    long getLastSentMessageTimestamp();
 
 }
