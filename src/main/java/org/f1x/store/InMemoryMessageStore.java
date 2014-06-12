@@ -29,7 +29,7 @@ public final class InMemoryMessageStore implements MessageStore {
     public void put(int seqNum, byte[] message, int offset, int length) {
         synchronized (buffer) {
             if (seqNum <= lastSeqNum)
-                throw new IllegalStateException("Sequence is smaller than expected: " + seqNum);
+                throw new IllegalStateException("Attempt to store message #" + seqNum + " which is less than expected " + (lastSeqNum+1));
             lastSeqNum = seqNum;
             // Store message using [LEN][Message][SEQ][LEN] format
             buffer.writeInt(length);
