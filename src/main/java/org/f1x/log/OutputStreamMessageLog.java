@@ -71,8 +71,9 @@ public class OutputStreamMessageLog implements MessageLog {
 
     protected static void safeClose(OutputStream os) {
         try {
-            os.close();
-        } catch (IOException e) {
+            if (os != null)
+                os.close();
+        } catch (Throwable e) {
             LOGGER.error().append("Error closing to FIX log").append(e).commit();
         }
     }
