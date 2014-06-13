@@ -368,25 +368,26 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     /**
-     * Sends a message. This message is persisted in message store
+     * Sends a message using next sequence number. This message is persisted in message store
      */
     @Override
     public void send(MessageBuilder messageBuilder) throws IOException {
-        send0(sessionState.consumeNextSenderSeqNum(), messageBuilder, messageStore);
-    }
-
-    /**
-     * Resends a message with given msg seq num, this message is not persisted in message store.
-     */
-    protected void resend(MessageBuilder messageBuilder, int msgSeqNum) throws IOException {
-        send0(msgSeqNum, messageBuilder, null);
-    }
-
-    protected void send0(int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore) throws IOException {
         synchronized (sendLock) {
+            int msgSeqNum = sessionState.consumeNextSenderSeqNum();
             long now = timeSource.currentTimeMillis();
             sessionState.setLastSentMessageTimestamp(now);
             messageAssembler.send(getSessionID(), msgSeqNum, messageBuilder, messageStore, now, out);
+        }
+    }
+
+    /**
+     * Resend a message with given sequence number. The message is not persisted in message store.
+     */
+    protected void resend(MessageBuilder messageBuilder, int forcedMsgSeqNum) throws IOException {
+        synchronized (sendLock) {
+            long now = timeSource.currentTimeMillis();
+            sessionState.setLastSentMessageTimestamp(now);
+            messageAssembler.send(getSessionID(), forcedMsgSeqNum, messageBuilder, null, now, out);
         }
     }
 
