@@ -14,13 +14,17 @@
 
 package org.f1x.v1.schedule;
 
+import org.f1x.store.InMemoryMessageStore;
+import org.f1x.store.MessageStore;
 import org.f1x.util.StoredTimeSource;
 import org.f1x.util.TestUtils;
+import org.f1x.v1.FixSessionInitiator;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.TimeZone;
 
 public class Test_SimpleSessionSchedule {
 
@@ -326,6 +330,17 @@ public class Test_SimpleSessionSchedule {
 
     private SimpleSessionSchedule makeSchedule (int startDayOfWeek, int endDayOfWeek, String startTimeOfDay, String endTimeOfDay, boolean isDailySchedule) {
         return new SimpleSessionSchedule(startDayOfWeek, endDayOfWeek, startTimeOfDay, endTimeOfDay, isDailySchedule, null);
+    }
+
+    public static void test() {
+        SessionSchedule schedule = new SimpleSessionSchedule(Calendar.SUNDAY, Calendar.FRIDAY, "17:30:00", "17:00:00", true, TimeZone.getTimeZone("America/New_York"));
+
+        MessageStore messageStore = new InMemoryMessageStore(1 << 20);
+
+        FixSessionInitiator initiator = null;
+
+        initiator.setMessageStore(messageStore);
+        initiator.setSessionSchedule(schedule);
     }
 
     private static String formatDuration (long millis) {
