@@ -36,7 +36,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class Test_ConcurrentMessageStore extends TestCommon {
     private static final int NUM_CLIENTS = 16;
-    private static final int NUM_MESSAGES_PER_CLIENT_THREAD = 100;
+    private static final int NUM_MESSAGES_PER_CLIENT_THREAD = 1024;
     private static final int MAX_MESSAGE_SIZE = 4096;
 
     private static final int PORT = 7890;
@@ -50,8 +50,8 @@ public class Test_ConcurrentMessageStore extends TestCommon {
     public void concurrentSend() throws InterruptedException, IOException {
 
 
-        final MessageStore sentMessages = new InMemoryMessageStore(1 << 20);
-        final MessageStore receivedMessages = new InMemoryMessageStore(1 << 20);
+        final MessageStore sentMessages = new InMemoryMessageStore(1 << 24);
+        final MessageStore receivedMessages = new InMemoryMessageStore(1 << 24);
 
         final TestServer server = new TestServer(PORT, ServerSessionID, receivedMessages);
         final TestClient client = new TestClient(PORT, ClientSessionID, sentMessages);
