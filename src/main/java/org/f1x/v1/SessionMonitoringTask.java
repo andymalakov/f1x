@@ -35,7 +35,7 @@ final class SessionMonitoringTask extends TimerTask {
         if (lastReceivedMessageTimestamp < currentTime - heartbeatInterval) {
             LOGGER.debug().append("Inactivity of opposite side reached the limit. Send Test Request (1) message.").commit();
             try {
-                communicator.sendTestRequest("check"); // TODO: testReqId Generator?
+                communicator.sendTestRequest("Are you there?"); // TODO: testReqId Generator?
             } catch (IOException e) {
                 LOGGER.warn().append("Error sending Test Request (1)").append(e).commit();
             }
