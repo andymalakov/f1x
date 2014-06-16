@@ -18,7 +18,7 @@ public class Test_DecodingNewOrderSingle {
 
     @Ignore
     @Test
-    public void testTinyFIX() {
+    public void testF1X() {
         byte[] msg = AsciiUtils.getBytes(SAMPLE);
         DefaultMessageParser parser = new DefaultMessageParser();
 
