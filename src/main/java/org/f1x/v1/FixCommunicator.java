@@ -16,36 +16,35 @@ package org.f1x.v1;
 
 import org.f1x.api.FixParserException;
 import org.f1x.api.FixSettings;
+import org.f1x.api.FixVersion;
+import org.f1x.api.message.MessageBuilder;
+import org.f1x.api.message.MessageParser;
+import org.f1x.api.message.fields.EncryptMethod;
+import org.f1x.api.message.fields.FixTags;
+import org.f1x.api.message.fields.MsgType;
 import org.f1x.api.message.fields.SessionRejectReason;
 import org.f1x.api.session.*;
-import org.f1x.api.message.fields.EncryptMethod;
+import org.f1x.io.InputChannel;
+import org.f1x.io.LoggingOutputChannel;
+import org.f1x.io.OutputChannel;
+import org.f1x.log.MessageLog;
+import org.f1x.log.MessageLogFactory;
 import org.f1x.store.EmptyMessageStore;
 import org.f1x.store.MessageStore;
 import org.f1x.store.SafeMessageStore;
+import org.f1x.util.AsciiUtils;
+import org.f1x.util.ByteArrayReference;
+import org.f1x.util.RealTimeSource;
 import org.f1x.util.TimeSource;
 import org.f1x.util.timer.GlobalTimer;
 import org.f1x.v1.schedule.SessionSchedule;
 import org.f1x.v1.state.MemorySessionState;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
-import org.f1x.api.FixVersion;
-import org.f1x.api.message.MessageBuilder;
-import org.f1x.api.message.MessageParser;
-import org.f1x.api.message.fields.FixTags;
-import org.f1x.api.message.fields.MsgType;
-import org.f1x.io.InputChannel;
-import org.f1x.io.LoggingOutputChannel;
-import org.f1x.io.OutputChannel;
-import org.f1x.log.MessageLog;
-import org.f1x.log.MessageLogFactory;
-import org.f1x.util.AsciiUtils;
-import org.f1x.util.ByteArrayReference;
-import org.f1x.util.RealTimeSource;
 
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Networking common for FIX Acceptor and FIX Initiator
@@ -65,8 +64,8 @@ public abstract class FixCommunicator implements FixSession {
     protected SessionState sessionState;
 
     // Defined during initialization
-    private InputChannel in;
-    private OutputChannel out;
+    private volatile InputChannel in;
+    private volatile OutputChannel out;
 
     protected MessageStore messageStore;
     protected SessionSchedule schedule;
@@ -78,14 +77,20 @@ public abstract class FixCommunicator implements FixSession {
     private final MessageBuilder messageBuilderForResend;
 
     private volatile SessionStatus status = SessionStatus.Disconnected;
-    protected volatile boolean active = true; // close() sets this to false
-    protected final AtomicBoolean running = new AtomicBoolean();
+
+    /** This flag is set when communicator is going thought graceful disconnect initiated by this side.
+     * We continue to process inbound requests but do not make new attempts to establish socket connections.
+     * Typically inbound LOGOUT in this state causes disconnect.
+      */
+    protected volatile boolean closeInProgress = false;
 
     // used by receiver thread only
     private final DefaultMessageParser parser = new DefaultMessageParser();
     private final byte [] inboundMessageBuffer;
     private final ByteArrayReference msgType = new ByteArrayReference();
     private final byte [] beginString;
+
+    // Used by inbound message processing thread only
     private final ByteArrayReference temporaryByteArrayReference = new ByteArrayReference();
 
     // Used by senders
@@ -233,12 +238,14 @@ public abstract class FixCommunicator implements FixSession {
                 offset = processInboundMessages(length);
             }
 
-            while (active) { ///prevents logged out session from re-connect
+            while (in != null) {
                 int bytesRead = in.read(inboundMessageBuffer, offset, inboundMessageBuffer.length - offset);
                 if (bytesRead <= 0) {
+                    if (closeInProgress)
+                        break;
                     throw ConnectionProblemException.NO_SOCKET_DATA;
                 } else {
-                    offset = processInboundMessages(offset+bytesRead);
+                    offset = processInboundMessages(offset + bytesRead);
                 }
             }
             LOGGER.error().append("Finishing FIX session").commit();
@@ -258,13 +265,13 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
-        if (active) {
+        //if (active) {
             if (logStackTrace)
                 LOGGER.error().append(errorText).append(" : ").append(e).commit();
             else
                 LOGGER.error().append(errorText).append(" : ").append(e.getMessage()).commit();
             disconnect(errorText);
-        }
+        //}
     }
 
 
@@ -277,13 +284,13 @@ public abstract class FixCommunicator implements FixSession {
             parser.set(inboundMessageBuffer, messageStart, readMessageLength);
 
             // All FIX messages begin with 3 required tags: BeginString, BodyLength, and MsgType.
-            parseBeginString(parser);
-            final int bodyLength = parseBodyLength(parser);
+            FixCommunicatorHelper.parseBeginString(parser, beginString);
+            final int bodyLength = FixCommunicatorHelper.parseBodyLength(parser);
             final int msgTypeStart = parser.getOffset();
 
             final int lengthOfBeginStringAndBodyLength = msgTypeStart - messageStart;
             final int messageLength = lengthOfBeginStringAndBodyLength + bodyLength + CHECKSUM_LENGTH; // BodyLength is the number of characters in the message following the BodyLength field up to, and including, the delimiter immediately preceding the CheckSum tag ("10=123|")
-            checkMessageLength(messageLength, inboundMessageBuffer.length);
+            FixCommunicatorHelper.checkMessageLength(messageLength, inboundMessageBuffer.length);
 
             if (readMessageLength < messageLength)
                 break; // retry after we read full message in the buffer
@@ -298,7 +305,7 @@ public abstract class FixCommunicator implements FixSession {
             if (messageLog != null)
                 messageLog.log(true, inboundMessageBuffer, messageStart, messageLength);
 
-            final int msgSeqNum = findMsgSeqNum(parser);
+            final int msgSeqNum = FixCommunicatorHelper.findMsgSeqNum(parser);
 
             // set parser limit to consume single message
             parser.set(inboundMessageBuffer, messageStart, messageLength);
@@ -315,10 +322,10 @@ public abstract class FixCommunicator implements FixSession {
         return remainingSize;
     }
 
-    /** Send LOGOUT but do not drop socket connection */
+    /** Send LOGOUT but do not drop socket connection (session enters {@link org.f1x.api.session.SessionStatus#InitiatedLogout} state)*/
     @Override
     public void logout(String cause) {
-        LOGGER.info().append("Initiating FIX Logout: ").append(cause).commit();
+        LOGGER.info().append("Initiating LOGOUT: ").append(cause).commit();
 
         if (status == SessionStatus.ApplicationConnected) { // TODO: lock
             try {
@@ -329,7 +336,11 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    /** Terminate socket connection (no logout message is sent if session is in process) */
+    /**
+     * Terminate socket connection immediately (no LOGOUT message is sent if session is in process).
+     * Session enters {@link org.f1x.api.session.SessionStatus#Disconnected} state.
+     * Initiator will try to re-connect after little delay (delay is configurable, subject to session schedule).
+     */
     @Override
     public void disconnect(String cause) {
         LOGGER.info().append("FIX Disconnect due to ").append(cause).commit();
@@ -338,8 +349,12 @@ public abstract class FixCommunicator implements FixSession {
         long now = timeSource.currentTimeMillis();
         sessionState.setLastConnectionTimestamp(now);
         try {
+
             in.close();
             out.close();
+            in = null;
+            out = null;
+
             if (messageLog != null) {
                 messageLog.close();
                 messageLog = null;
@@ -349,12 +364,10 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-
-
     /** Logout current session (if needed) and terminate socket connection. */
     @Override
     public void close() {
-        active = false;
+        this.closeInProgress = true;
         if (status == SessionStatus.ApplicationConnected) {
             try {
                 sendLogout("Goodbye");
@@ -363,8 +376,9 @@ public abstract class FixCommunicator implements FixSession {
             }
         }
 
-        if (status != SessionStatus.Disconnected)
-            disconnect("Closing");
+//TODO: Timeout:
+//        if (status != SessionStatus.Disconnected)
+//            disconnect("Closing");
     }
 
     /**
@@ -389,11 +403,6 @@ public abstract class FixCommunicator implements FixSession {
             sessionState.setLastSentMessageTimestamp(now);
             messageAssembler.send(getSessionID(), forcedMsgSeqNum, messageBuilder, null, now, out);
         }
-    }
-
-    /** Convenience method for <pre>sendLogon(getFixSettings().isResetSequenceNumbersOnEachLogon())</pre> */
-    protected void sendLogon() throws IOException {
-        sendLogon(settings.isResetSequenceNumbersOnEachLogon());
     }
 
     /** @param forceResetSequenceNumbers pass true to force sequence numbers reset, otherwise implementation will rely on {@link org.f1x.api.FixSettings#isResetSequenceNumbersOnEachLogon()} */
@@ -553,29 +562,7 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    private void parseBeginString(MessageParser parser) throws InvalidFixMessageException {
-        if ( ! parser.next())
-            throw InvalidFixMessageException.EMPTY_MESSAGE;
 
-        if (parser.getTagNum() != FixTags.BeginString)
-            throw InvalidFixMessageException.BAD_FIRST_TAG;
-
-        if (this.beginString != null && ! parser.isValueEquals(this.beginString))
-            throw InvalidFixMessageException.INVALID_BEGIN_STRING;
-    }
-
-    private static int parseBodyLength(MessageParser parser) throws InvalidFixMessageException {
-        if ( ! parser.next())
-            throw InvalidFixMessageException.MISSING_BODY_LENGTH;
-
-        if (parser.getTagNum() != FixTags.BodyLength)
-            throw InvalidFixMessageException.MISSING_BODY_LENGTH;
-
-        int bodyLength = parser.getIntValue();
-        if (bodyLength <= 0)
-            throw InvalidFixMessageException.BAD_BODY_LENGTH;
-        return bodyLength;
-    }
 
     protected void processInboundMessage(MessageParser parser, CharSequence msgType, int msgSeqNumX) throws IOException, InvalidFixMessageException, ConnectionProblemException {
         long now = timeSource.currentTimeMillis();
@@ -588,16 +575,16 @@ public abstract class FixCommunicator implements FixSession {
                 processInSessionMessage(msgSeqNumX, msgType, parser);
                 break;
             case SocketConnected:
-                if (isLogon(msgType))
+                if (FixCommunicatorHelper.isLogon(msgType))
                     processInboundLogon(msgSeqNumX, parser);
                 else
                     throw InvalidFixMessageException.EXPECTING_LOGON_MESSAGE;
 
                 break;
             case InitiatedLogon:
-                if(isLogon(msgType))
+                if(FixCommunicatorHelper.isLogon(msgType))
                     processInboundLogon(msgSeqNumX, parser);
-                else if(isLogout(msgType))
+                else if(FixCommunicatorHelper.isLogout(msgType))
                     processInboundLogout(msgSeqNumX, parser);
                 else
                     throw InvalidFixMessageException.EXPECTING_LOGON_MESSAGE;
@@ -646,7 +633,7 @@ public abstract class FixCommunicator implements FixSession {
         final boolean possDup;
         if (msgSeqNumX > 0) { // PossDupFlag=N
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-            if ( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) //Let's imagine we expected MsgSeqNum=5 but received 10
+            if ( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) //Let's imagine we expected MsgSeqNum=5 but received 10
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX - 1);   //This will send ResendRequest(5, 0) and set currentResendEndSeqNo=9
 
             sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
@@ -664,8 +651,6 @@ public abstract class FixCommunicator implements FixSession {
      * @param msgType type of the message [tag MsgType(35)].
      * @param msgSeqNum message sequence number [tag MsgSeqNum(34)].
      * @param possDup <code>true</code> if this message is marked as a duplicate using tag PossDupFlag(43)
-     * @param parser
-     * @throws IOException
      */
     protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
         assert msgSeqNum > 0; // by default do nothing
@@ -675,10 +660,10 @@ public abstract class FixCommunicator implements FixSession {
      * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
      */
     protected void processInboundLogon(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException, ConnectionProblemException {
-        LOGGER.debug().append("Processing inbound Logon").commit();
+        LOGGER.debug().append("Processing inbound LOGON(A)").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received LOGON message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append("Received LOGON(A) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
@@ -714,7 +699,7 @@ public abstract class FixCommunicator implements FixSession {
             throw InvalidFixMessageException.IN_SESSION_LOGON_MESSAGE_WITHOUT_MSG_SEQ_RESET_NOT_EXPECTED;
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
 
         if (currentStatus == SessionStatus.SocketConnected) {
@@ -726,7 +711,7 @@ public abstract class FixCommunicator implements FixSession {
         } else if (currentStatus == SessionStatus.ApplicationConnected) {
             sendLogon(resetSeqNum);
         } else {
-            LOGGER.warn().append("Unexpected Logon in status: ").append(currentStatus).commit();
+            LOGGER.warn().append("Unexpected LOGON(A) in status: ").append(currentStatus).commit();
             return;
         }
 
@@ -737,16 +722,16 @@ public abstract class FixCommunicator implements FixSession {
 
     @SuppressWarnings("unused")
     protected void processInboundLogout(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append("Processing inbound Logout").commit();
+        LOGGER.debug().append("Processing inbound LOGOUT(5)").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received LOGOUT message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append("Received LOGOUT(5) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
 
         temporaryByteArrayReference.clear();
         while (parser.next()) {
@@ -756,7 +741,7 @@ public abstract class FixCommunicator implements FixSession {
             }
         }
 
-        LOGGER.info().append("Logout received: ").append(temporaryByteArrayReference).commit();
+        LOGGER.info().append("LOGOUT(5) received: ").append(temporaryByteArrayReference).commit();
 
         SessionStatus currentStatus = getSessionStatus();
         if (currentStatus == SessionStatus.ApplicationConnected) {
@@ -767,7 +752,7 @@ public abstract class FixCommunicator implements FixSession {
             if ( ! expectedTargetMsgSeqNum)
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
 
-            sendLogout("Responding to Logout request");
+            sendLogout("Responding to LOGOUT(5) request");
             if ( expectedTargetMsgSeqNum)
                 setSessionStatus(SessionStatus.SocketConnected);
         } else if (currentStatus == SessionStatus.InitiatedLogout) {
@@ -775,42 +760,42 @@ public abstract class FixCommunicator implements FixSession {
                 sessionState.consumeNextTargetSeqNum();
             // If this side was the initiator of the Logout sequence,
             // then this is a Logout confirmation and the session should be immediately terminated upon receipt.
-            disconnect("Logout response received");
+            disconnect("Both sides exchanged LOGOUT(5)");
         } else if (currentStatus == SessionStatus.InitiatedLogon){
             if (expectedTargetMsgSeqNum)
                 sessionState.consumeNextTargetSeqNum();
-            disconnect("Logout on Logon received");
+            disconnect("LOGON(A) rejected");
         } else {
-            LOGGER.info().append("Unexpected Logout in status: ").append(currentStatus).commit();
+            LOGGER.info().append("Unexpected LOGOUT(5) message in status: ").append(currentStatus).commit();
         }
     }
 
     @SuppressWarnings("unused")
     protected void processInboundHeartbeat(int msgSeqNumX, MessageParser parser) throws InvalidFixMessageException, IOException {
-        LOGGER.debug().append("Processing Inbound Heartbeat").commit();
+        LOGGER.debug().append("Processing Inbound HEARTBEAT(0)").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received HEARTBEAT message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append("Received HEARTBEAT(0) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        if( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum))
+        if( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum))
             sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
 
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
     }
 
     protected void processInboundTestRequest(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append("Processing inbound Test Request").commit();
+        LOGGER.debug().append("Processing inbound TEST(1) request").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received TEST message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append("Received TEST(1) request with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
         if (expectedTargetMsgSeqNum) {
 
@@ -832,16 +817,16 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     private void processInboundResendRequest(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append("Processing inbound Resend Request").commit();
+        LOGGER.debug().append("Processing inbound RESEND(2) request").commit();
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received RESEND message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append("Received RESEND(2) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
-        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
 
         int beginSeqNo = -1;
@@ -897,8 +882,8 @@ public abstract class FixCommunicator implements FixSession {
         try {
             parserForResend.set(message, 0 , message.length);
 
-            parseBeginString(parserForResend);
-            final int bodyLength = parseBodyLength(parserForResend);
+            FixCommunicatorHelper.parseBeginString(parserForResend, beginString);
+            final int bodyLength = FixCommunicatorHelper.parseBodyLength(parserForResend);
 
             final int lengthOfBeginStringAndBodyLength = parserForResend.getOffset();
             final int messageLength = lengthOfBeginStringAndBodyLength + bodyLength + CHECKSUM_LENGTH;
@@ -963,8 +948,7 @@ public abstract class FixCommunicator implements FixSession {
      * @return true if a message with this msgType requires the resending otherwise false
      */
     protected boolean isResendRequired(CharSequence msgType){
-        return (msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.REJECT) ||
-                !AdminMessageTypes.isAdmin(msgType);
+        return ! AdminMessageTypes.isAdmin(msgType) || msgType.charAt(0) == AdminMessageTypes.REJECT; // do not resend Admin message unless it is a REJECT(3)
     }
 
     private void processInboundSequenceReset(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
@@ -996,7 +980,7 @@ public abstract class FixCommunicator implements FixSession {
         //noinspection StatementWithEmptyBody
         if (isGapFill) {
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-            if( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)){
+            if( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)){
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
             }
         } else {
@@ -1012,12 +996,12 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void processInboundReject(int msgSeqNumX, MessageParser parser) throws InvalidFixMessageException, IOException {
-        LOGGER.debug().append("Processing inbound Reject").commit();
+        LOGGER.debug().append("Processing inbound REJECT(3)").commit();
 
         // Skip sequence number checking if we are dealing with GapFill
         if (msgSeqNumX > 0) {
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-            if ( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) {
+            if ( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) {
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
             }
             sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
@@ -1038,9 +1022,9 @@ public abstract class FixCommunicator implements FixSession {
 
         //TODO: Notify client API: some brokers use session-level REJECT to reject abnormal order submissions
         if (temporaryByteArrayReference.length() != 0)
-            LOGGER.warn().append("Received session-level REJECT:").append(refSeqNum).append(": ").append(temporaryByteArrayReference).commit();
+            LOGGER.warn().append("Received REJECT(3):").append(refSeqNum).append(": ").append(temporaryByteArrayReference).commit();
         else
-            LOGGER.warn().append("Received session-level REJECT:").append(refSeqNum).commit();
+            LOGGER.warn().append("Received REJECT(3):").append(refSeqNum).commit();
 
     }
 
@@ -1067,8 +1051,12 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void scheduleSessionMonitoring(long period){
-         sessionMonitoringTask = new SessionMonitoringTask(this);
-         GlobalTimer.getInstance().schedule(sessionMonitoringTask, period, period);
+        if (sessionMonitoringTask == null) {
+            sessionMonitoringTask = new SessionMonitoringTask(this);
+            GlobalTimer.getInstance().schedule(sessionMonitoringTask, period, period);
+        } else {
+            LOGGER.warn().append("Monitoring task already defined").commit();
+        }
     }
 
     protected void unscheduleSessionMonitoring() {
@@ -1078,58 +1066,5 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    protected static boolean checkTargetMsgSeqNum(int actual, int expected) throws InvalidFixMessageException, IOException {
-        // If the incoming message has a sequence number less than expected and the PossDupFlag is not set, it indicates a serious error.
-        // It is strongly recommended that the session be terminated and manual intervention be initiated.
-        if (actual < expected)
-            throw InvalidFixMessageException.TARGET_MSG_SEQ_NUM_LESS_EXPECTED;
-
-        return actual == expected;
-    }
-
-    private static void checkMessageLength(int messageLength, int maxMessageLength) throws InvalidFixMessageException {
-        if(messageLength > maxMessageLength)
-            throw InvalidFixMessageException.MESSAGE_TOO_LARGE;
-    }
-
-    private static boolean isLogon(CharSequence msgType) {
-        return msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.LOGON;
-    }
-
-    private static boolean isLogout(CharSequence msgType) {
-        return msgType.length() == 1 && msgType.charAt(0) == AdminMessageTypes.LOGOUT;
-    }
-
-    /**
-     * @return message sequence number in current message. Method returns negated result ( - MsgSeqNum) if this message has PossDupFlag(43) set to Y.
-     * @throws  InvalidFixMessageException if message is missing message sequence number of it is invalid
-     */
-    private static int findMsgSeqNum(MessageParser parser) throws InvalidFixMessageException {
-        Boolean possDupFlag = null;
-        int msgSeqNum = 0;
-        while (parser.next()) {
-            final int tagNum = parser.getTagNum();
-            if (tagNum == FixTags.MsgSeqNum) {
-                msgSeqNum = parser.getIntValue();
-                if(msgSeqNum < 1)
-                    throw InvalidFixMessageException.MSG_SEQ_NUM_MUST_BE_POSITIVE;
-                if (possDupFlag != null)
-                    break; // we are done
-
-            } else
-            if (tagNum == FixTags.PossDupFlag) {
-                possDupFlag = parser.getBooleanValue() ? Boolean.TRUE : Boolean.FALSE;
-                if (msgSeqNum != 0)
-                    break; // we are done
-            }
-        }
-
-        if (msgSeqNum == 0)
-            throw InvalidFixMessageException.NO_MSG_SEQ_NUM;
-
-        if (possDupFlag != null && possDupFlag)
-            msgSeqNum = -msgSeqNum; // negative result marks duplicate
-        return msgSeqNum;
-    }
 
 }

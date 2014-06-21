@@ -72,8 +72,9 @@ public class Test_ConcurrentMessageStore extends TestCommon {
 
         client.waitForAllMessages();
 
-        client.disconnect("End of test");
         client.close();
+        //client.close();
+        System.out.println("Closing server");
         server.close();
 
         // compare sent and received messages

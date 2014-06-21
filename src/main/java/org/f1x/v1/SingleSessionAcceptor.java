@@ -43,4 +43,10 @@ public class SingleSessionAcceptor extends ServerSocketSessionAcceptor {
         acceptor.run();
         return true;
     }
+
+    @Override
+    public void close() {
+        acceptor.close();
+        super.close();
+    }
 }

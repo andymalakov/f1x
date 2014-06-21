@@ -31,12 +31,20 @@ public interface FixSession extends Runnable {
     MessageBuilder createMessageBuilder();
     void send (MessageBuilder mb) throws IOException;
 
-    /** Terminate socket connection immediately (no logout message is sent if session is in process) */
+    /**
+     * Terminate socket connection immediately (no LOGOUT message is sent if session is in process).
+     * Session enters {@link org.f1x.api.session.SessionStatus#Disconnected} state.
+     * Initiator will try to re-connect after little delay (delay is configurable, subject to session schedule).
+     */
     void disconnect(String cause);
 
-    /** Terminate socket connection (send logout message if session is in process) */
+    /**
+     * Send LOGOUT but do not drop socket connection.
+     * Session enters {@link org.f1x.api.session.SessionStatus#InitiatedLogout} state.
+     * @param cause Logout cause, can be null.
+     */
     void logout(String cause);
 
     /** Send LOGOUT (if needed) and terminate socket connection. */
-    void close();
+    void close(/*long timeout*/);
 }
