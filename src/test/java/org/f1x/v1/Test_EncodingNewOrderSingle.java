@@ -39,7 +39,7 @@ public class Test_EncodingNewOrderSingle {
 
     @Ignore
     @Test
-    public void testTinyFIXEncoding() throws IOException {
+    public void testF1XEncoding() throws IOException {
         MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
         RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256);
         SessionID sessionID = new SessionIDBean(SENDER_COMP_ID, SENDER_SUB_ID, TARGET_COMP_ID, TARGET_SUB_ID);
