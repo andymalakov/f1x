@@ -11,21 +11,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.f1x.tools;
 
 import org.f1x.SessionIDBean;
@@ -36,7 +21,7 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.util.ByteArrayReference;
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.v1.FixSessionAcceptor;
@@ -84,7 +69,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
         }
 
         @Override
-        protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+        protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
             if (Tools.equals(MsgType.ORDER_SINGLE, msgType)) {
                 try {
                     processInboundOrderSingle(parser);
@@ -92,7 +77,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
                     e.printStackTrace();
                 }
             } else
-                super.processInboundAppMessage(msgType, parser);
+                super.processInboundAppMessage(msgType, msgSeqNum, possDup, parser);
         }
 
         private void scheduleStats(final int intervalInMillis) {
@@ -143,7 +128,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
 
         private void sendExecutionReport (long clOrdId, Side side, double orderQty, CharSequence symbol, double orderPrice) throws IOException {
 
-            assert getSessionState() == SessionState.ApplicationConnected;
+            assert getSessionStatus() == SessionStatus.ApplicationConnected;
             synchronized (mb) {
                 mb.clear();
                 mb.setMessageType(MsgType.EXECUTION_REPORT);

@@ -12,20 +12,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.f1x.v1;
 
 import org.f1x.api.FixParserException;
@@ -46,16 +32,18 @@ public class DefaultMessageParser implements MessageParser {
     private final ByteArrayReference charSequenceBuffer = new ByteArrayReference();
 
     private byte[] buffer;
+    private int start;
     private int offset; // next byte to read
     private int limit;
     private int tagNum;
     private int valueOffset, valueLength;
 
 
-    public void set (byte [] buffer, int offset, int length) {
+    public final void set (byte [] buffer, int offset, int length) {
         this.buffer = buffer;
-        this.offset = offset;
+        this.start = offset;
         this.limit = offset + length;
+        reset();
     }
 
     @Override
@@ -66,8 +54,6 @@ public class DefaultMessageParser implements MessageParser {
                 if (valueLength == 0)
                     throw new FixParserException("Tag " + tagNum + " has empty value at position " + offset);
 
-//                if (tagNum == FixTags.MsgSeqNum)
-//                    validateSequenceNumber(getIntegerValue());
             }
             return result;
 
@@ -183,6 +169,12 @@ public class DefaultMessageParser implements MessageParser {
         return localTimestampParser.getUTCDateOnly(buffer, valueOffset, valueLength);
     }
 
+
+    @Override
+    public int getLocalMktDate2() {
+        return localTimestampParser.getUTCDateOnly2(buffer, valueOffset, valueLength);
+    }
+
     @Override
     public int getUTCTimeOnly() {
         return TimeOfDayParser.parseTimeOfDay(buffer, valueOffset, valueLength);
@@ -200,7 +192,11 @@ public class DefaultMessageParser implements MessageParser {
         return true;
     }
 
-
+    @Override
+    public final void reset() {
+        tagNum = valueOffset = valueLength = 0;
+        offset = start;
+    }
 
     int getOffset() {
         return offset; //TODO: Refactor this class so that we won't need this method

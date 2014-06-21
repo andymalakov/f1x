@@ -12,20 +12,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.f1x.tools;
 
 import org.f1x.SessionIDBean;
@@ -36,7 +22,7 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.api.FixInitiatorSettings;
 import org.f1x.v1.FixSessionInitiator;
 
@@ -54,7 +40,7 @@ public class SimpleFixInitiator extends FixSessionInitiator {
     }
 
     public void sendNewOrder (long orderId) throws IOException {
-        assert getSessionState() == SessionState.ApplicationConnected;
+        assert getSessionStatus() == SessionStatus.ApplicationConnected;
         synchronized (mb) {
             mb.clear();
             mb.setMessageType(MsgType.ORDER_SINGLE);
@@ -75,11 +61,11 @@ public class SimpleFixInitiator extends FixSessionInitiator {
     }
 
     @Override
-    protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+    protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
         if (Tools.equals(MsgType.EXECUTION_REPORT, msgType)) {
             processInboundExecutionReport(parser);
         } else
-            super.processInboundAppMessage(msgType, parser);
+            super.processInboundAppMessage(msgType, msgSeqNum, possDup, parser);
     }
 
     private static final ByteEnumLookup<OrdStatus> ordStatusLookup = new ByteEnumLookup<>(OrdStatus.class);
@@ -127,7 +113,7 @@ public class SimpleFixInitiator extends FixSessionInitiator {
 
         while(true) {
             Thread.sleep(100);
-            if (getSessionState() == SessionState.ApplicationConnected)
+            if (getSessionStatus() == SessionStatus.ApplicationConnected)
                 break;
         }
 

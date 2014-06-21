@@ -16,7 +16,7 @@ package org.f1x.io.disruptor;
 
 import com.lmax.disruptor.ExceptionHandler;
 
-import static junit.framework.Assert.fail;
+import static org.junit.Assert.fail;
 
 public class TestExceptionHandler implements ExceptionHandler {
 

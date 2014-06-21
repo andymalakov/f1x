@@ -225,6 +225,33 @@
   <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" assert-keyword="true" jdk-15="true" project-jdk-name="1.7" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
+  <component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="NoAllocationsTest" type="JUnit" factoryName="JUnit">
+      <module name="f1x" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+      <option name="ALTERNATIVE_JRE_PATH" value="" />
+      <option name="PACKAGE_NAME" value="org.f1x.alloc" />
+      <option name="MAIN_CLASS_NAME" value="org.f1x.alloc.NoAllocationsTest" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" value="-ea -javaagent:allocation.jar" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="file://$MODULE_DIR$/../tools" />
+      <option name="ENV_VARIABLES" />
+      <option name="PASS_PARENT_ENVS" value="true" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="moduleWithDependencies" />
+      </option>
+      <envs />
+      <patterns />
+      <RunnerSettings RunnerId="Profile ">
+        <option name="myExternalizedOptions" value="&#13;&#10;additional-options2=onexit\=snapshot&#13;&#10;" />
+      </RunnerSettings>
+      <RunnerSettings RunnerId="Run" />
+      <ConfigurationWrapper RunnerId="Run" />
+      <method />
+    </configuration>
+  </component>
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
   </component>
@@ -267,6 +294,18 @@
       </JAVADOC>
       <SOURCES>
         <root url="jar://$MAVEN_REPOSITORY$/com/lmax/disruptor/3.2.0/disruptor-3.2.0-sources.jar!/" />
+      </SOURCES>
+    </library>
+    <library name="Maven: it.sauronsoftware.cron4j:cron4j:2.2.5">
+      <CLASSES>
+        <root url="jar://$MAVEN_REPOSITORY$/it/sauronsoftware/cron4j/cron4j/2.2.5/cron4j-2.2.5.jar!/" />
+      </CLASSES>
+      <JAVADOC>
+        <root url="jar://$MAVEN_REPOSITORY$/it/sauronsoftware/cron4j/cron4j/2.2.5/cron4j-2.2.5-javadoc.jar!/" />
+      </JAVADOC>
+      <SOURCES>
+        <root url="jar://$MAVEN_REPOSITORY$/it/sauronsoftware/cron4j/cron4j/2.2.5/cron4j-2.2.5-sources.jar!/" />
+        <root url="file://$JAVA_THIRD_PARTY$/cron4j-2.2.5/src" />
       </SOURCES>
     </library>
     <library name="Maven: junit:junit:4.8.1">

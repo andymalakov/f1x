@@ -14,9 +14,9 @@
 
 package org.f1x.io;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-public interface OutputChannel {
+public interface OutputChannel extends Closeable {
     void write (byte [] buffer, int offset, int length) throws IOException;
-    void close() throws IOException;
 }

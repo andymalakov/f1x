@@ -94,4 +94,9 @@ public class MutableByteSequence implements CharSequence {
     public final String toString () {
         return new StringBuilder (this).toString ();
     }
+
+    public void clear(){
+        this.length = 0;
+    }
+
 }

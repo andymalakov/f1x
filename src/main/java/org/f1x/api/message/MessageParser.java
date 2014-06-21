@@ -12,20 +12,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.f1x.api.message;
 
 import org.f1x.util.ByteArrayReference;
@@ -72,11 +58,17 @@ public interface MessageParser {
     /** @return value of current tag interpreted as UTC Date (in YYYYMMDD format) */
     long getUTCDateOnly ();
 
-    /** @return value of current tag interpreted as LocalMktDate (in YYYYMMDD format) */
+    /** @return value of current tag interpreted as LocalMktDate (in YYYYMMDD format). Result is UTC timestamps which will have specified year/month/day in local timezone  */
     long getLocalMktDate ();
+
+    /** @return value of current tag interpreted as LocalMktDate (in YYYYMMDD format). Result is a decimal number with digits matching YYYYMMDD. */
+    int getLocalMktDate2 ();
 
     /** @return true if value of the last processed tag equals to given byte array */
     boolean isValueEquals(byte[] constant);
+
+    /** Restarts parsing current message from the beginning */
+    void reset();
 
 }
 

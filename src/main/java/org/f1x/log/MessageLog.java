@@ -16,7 +16,15 @@ package org.f1x.log;
 
 import java.io.Closeable;
 
+/**
+ * Message logger. Implementation must handle logInbound() and logOutbound() methods to be called concurrently
+ */
 public interface MessageLog extends Closeable {
-    void logInbound(byte [] buffer, int offset, int length);
-    void logOutbound(byte [] buffer, int offset, int length);
+    /**
+     * @param isInbound message direction (true if message is inbound)
+     * @param buffer    Buffer containing FIX message to log
+     * @param offset    message offset in the buffer
+     * @param length    message length in bytes
+     */
+    void log(boolean isInbound, byte[] buffer, int offset, int length);
 }

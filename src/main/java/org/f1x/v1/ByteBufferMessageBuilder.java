@@ -37,7 +37,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     private final TimestampFormatter localTimestampFormat = TimestampFormatter.createLocalTimestampFormatter();
     private final DoubleFormatter doubleFormatter;
 
-    private String msgType;
+    private CharSequence msgType;
     private final byte [] buffer;
     private int offset;
 
@@ -62,17 +62,21 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     }
 
     @Override
-    public void setMessageType(String msgType) {
+    public void setMessageType(CharSequence msgType) {
+        checkValue(msgType);
+
         this.msgType = msgType;
     }
 
     @Override
-    public String getMessageType() {
+    public CharSequence getMessageType() {
         return msgType;
     }
 
     @Override
     public void add(int tagNo, final CharSequence value) {
+        checkValue(value);
+
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
         offset = CharSequenceFormatter.format(value, buffer, offset);
@@ -81,10 +85,13 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void add(int tagNo, CharSequence value, int start, int end) {
+        checkValue(value, start, end);
+
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
         offset = CharSequenceFormatter.format(value, start, end, buffer, offset);
-        buffer[offset++] = SOH;    }
+        buffer[offset++] = SOH;
+    }
 
     @Override
     public void add(int tagNo, long value) {
@@ -151,6 +158,17 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     }
 
     @Override
+    public void addLocalMktDate2(int tagNo, int yyyymmdd) {
+        offset = IntFormatter.format(tagNo, buffer, offset);
+        buffer[offset++] = '=';
+        offset = IntFormatter.format4digits(yyyymmdd / 10000, buffer, offset); // year
+        int mmdd = yyyymmdd % 10000;
+        offset = IntFormatter.format2digits(mmdd / 100, buffer, offset); // month
+        offset = IntFormatter.format2digits(mmdd % 100, buffer, offset); // day
+        buffer[offset++] = SOH;
+    }
+
+    @Override
     public void addUTCTimeOnly(int tagNo, long timestamp) {
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
@@ -160,6 +178,8 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void addRaw(int tagNo, byte[] sourceBuffer, int sourceOffset, int sourceLength) {
+        checkValue(sourceBuffer, sourceOffset, sourceLength);
+
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
         System.arraycopy(sourceBuffer, sourceOffset, buffer, offset, sourceLength);
@@ -169,6 +189,8 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void addRaw(int tagNo, ByteArrayReference bytes) {
+        checkValue(bytes);
+
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
         offset += bytes.copyTo(buffer, offset);
@@ -218,12 +240,16 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public AppendableValue append(CharSequence csq) {
+        checkValue(csq);
+
         offset = CharSequenceFormatter.format(csq, buffer, offset);
         return this;
     }
 
     @Override
     public AppendableValue append(CharSequence csq, int start, int end) {
+        checkValue(csq, start, end);
+
         offset = CharSequenceFormatter.format(csq, start, end, buffer, offset);
         return this;
     }
@@ -264,4 +290,51 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     public void end() {
         buffer[offset++] = SOH;
     }
+
+    private static void checkValue(CharSequence value) {
+        if (value == null)
+            throw new NullPointerException("value is null");
+
+        if (value.length() == 0)
+            throw new IllegalArgumentException("empty value");
+    }
+
+    private static void checkValue(CharSequence value, int start, int end) {
+        if (value == null)
+            throw new NullPointerException("value is null");
+
+        int valueLength = value.length();
+        if (start < 0 || valueLength <= start)
+            throw new IllegalArgumentException("invalid start index: " + start);
+
+        if (end < 1 || valueLength < end)
+            throw new IllegalArgumentException("invalid end index: " + end);
+
+        int length = end - start;
+        if (length < 1)
+            throw new IllegalArgumentException("invalid length: " + length);
+    }
+
+    private static void checkValue(byte[] buffer, int offset, int length) {
+        if (buffer == null)
+            throw new NullPointerException("buffer is null");
+
+        if (offset < 0 || buffer.length <= offset)
+            throw new IllegalArgumentException("invalid offset: " + offset);
+
+        if (length < 1)
+            throw new IllegalArgumentException("invalid length: " + length);
+
+        if (offset + length > buffer.length)
+            throw new IllegalArgumentException("offset + length > length of buffer");
+    }
+
+    private static void checkValue(ByteArrayReference value) {
+        if (value == null)
+            throw new NullPointerException("value is null");
+
+        if (value.length() == 0)
+            throw new IllegalArgumentException("empty value");
+    }
+
 }

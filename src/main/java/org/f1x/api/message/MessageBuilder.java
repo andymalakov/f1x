@@ -29,9 +29,9 @@ import org.f1x.util.ByteArrayReference;
  */
 public interface MessageBuilder {
 
-    String getMessageType();
+    CharSequence getMessageType();
     void setMessageType(MsgType msgType);
-    void setMessageType(String msgType);
+    void setMessageType(CharSequence msgType);
 
     /**
      * Appends ASCII CharSequence tag value pair. Use {@link #addRaw(int, byte[], int, int)} for non-ASCII content and don't forget to specify MessageEncoding(347).
@@ -62,6 +62,8 @@ public interface MessageBuilder {
     void addUTCDateOnly (int tag, long timestamp);
     /** Adds LocalMktDate (in "yyyyMMdd" format) */
     void addLocalMktDate (int tag, long timestamp);
+    /** Adds LocalMktDate (in "yyyyMMdd" format) */
+    void addLocalMktDate2 (int tag, int yyyymmdd);
     /** Copies value of given tag from the provided byte buffer */
     void addRaw (int tag, byte[] buffer, int offset, int length);
     /** Copies value of given tag from the provided byte array reference */

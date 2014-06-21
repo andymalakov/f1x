@@ -12,26 +12,11 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.f1x.v1.schedule;
 
 import org.f1x.util.StoredTimeSource;
 import org.f1x.util.TestUtils;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Calendar;
@@ -40,23 +25,11 @@ import java.util.Date;
 public class Test_SimpleSessionSchedule {
 
     private static final String LONG_TIME_AGO = "20101212-00:00:00.000"; // some random time in the past (exact moment is not important)
-    private long lastSleepTime;
     private StoredTimeSource timeSource = new StoredTimeSource() {
         {
             setLocalTime(LONG_TIME_AGO);
         }
-
-        @Override
-        public void sleep(long millis) throws InterruptedException {
-            lastSleepTime = millis;
-        }
     };
-
-    @Before
-    public void init() {
-        lastSleepTime = 0;
-    }
-
 
     private SimpleSessionSchedule schedule;
 
@@ -287,6 +260,16 @@ public class Test_SimpleSessionSchedule {
         assertSessionWaitAndEndTime("20140117-23:01:00.000", "20140120-23:00:00.000", (1+24+24+9)*3600000 - 1*60000); // Friday after close
     }
 
+
+    /** Test weekly "Monday to Friday" schedule where start time is later than end time */
+    @Test
+    public void testFridayBeforeEnd () throws InterruptedException {
+        schedule = makeSchedule(Calendar.SUNDAY, Calendar.FRIDAY, "17:30:00", "16:59:00", true);  // Sun-Fri daily from 17:30 till 16:59 next day
+
+        assertNextSession ("20140314-13:30:00.000", "20140316-17:30:00.000", "20140317-16:59:00.000"); // Friday midday
+        assertSessionWaitAndEndTime("20140314-13:30:00.000", "20140314-16:59:00.000", 0); // Friday before close
+    }
+
     /// Helpers
 
     private void assertMostRecentSession (String currentTime, String expectedStart, String expectedEnd) {
@@ -317,33 +300,32 @@ public class Test_SimpleSessionSchedule {
 
     private void assertSessionWaitAndEndTime(String currentTime, String expectedSessionEndTime, long delayBeforeStart) throws InterruptedException {
         timeSource.setLocalTime(currentTime);
-        long actualSessionEndTimeTimestamp = schedule.waitForSessionStart(-1);
+        SessionTimes sessionTimes = schedule.getCurrentSessionTimes(timeSource.currentTimeMillis());
 
-        assertSleepTime(delayBeforeStart);
-        String actualSessionEndTime = TestUtils.formatLocalTimestamp(Math.abs(actualSessionEndTimeTimestamp));
+        long now = timeSource.currentTimeMillis();
+        Assert.assertEquals("Session start time", delayBeforeStart, Math.max(0, sessionTimes.getStart() - now));
+
+
+        String actualSessionEndTime = TestUtils.formatLocalTimestamp(sessionTimes.getEnd());
         Assert.assertEquals("Session end time", expectedSessionEndTime, actualSessionEndTime);
     }
 
-    private void assertSleepTime(long expectedSleepTime) {
-        Assert.assertEquals("Sleep time before session start", formatDuration(expectedSleepTime), formatDuration(lastSleepTime));
-        lastSleepTime = 0; // reset
-    }
 
 //    private void assertNewSession (SessionSchedule ss, String lastConnectionTimestamp, String currentTime) throws InterruptedException {
 //        timeSource.setLocalTime(currentTime);
-//        boolean newSession = ss.waitForSessionStart(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
+//        boolean newSession = ss.getCurrentSessionTimes(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
 //        Assert.assertTrue("same session", newSession);
 //    }
 //
 //    private void assertOldSession (SessionSchedule ss, String lastConnectionTimestamp, String currentTime) throws InterruptedException {
 //        timeSource.setLocalTime(currentTime);
-//        boolean newSession = ss.waitForSessionStart(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
+//        boolean newSession = ss.getCurrentSessionTimes(TestUtils.parseLocalTimestamp(lastConnectionTimestamp));
 //        Assert.assertFalse("old session", newSession);
 //    }
 
 
     private SimpleSessionSchedule makeSchedule (int startDayOfWeek, int endDayOfWeek, String startTimeOfDay, String endTimeOfDay, boolean isDailySchedule) {
-        return new SimpleSessionSchedule(startDayOfWeek, endDayOfWeek, startTimeOfDay, endTimeOfDay, isDailySchedule, null, timeSource);
+        return new SimpleSessionSchedule(startDayOfWeek, endDayOfWeek, startTimeOfDay, endTimeOfDay, isDailySchedule, null);
     }
 
     private static String formatDuration (long millis) {

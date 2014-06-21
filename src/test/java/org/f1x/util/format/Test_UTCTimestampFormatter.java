@@ -14,7 +14,7 @@
 
 package org.f1x.util.format;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 import org.f1x.util.TestUtils;
 

@@ -11,26 +11,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.f1x.api.session;
 
-public enum SessionState {
-    /** No network connection */
-    Disconnected,
+import org.f1x.v1.InvalidFixMessageException;
 
-    /** Network connection is up, but FIX connection is down */
-    SocketConnected,
+/**
+ * Session state that requires persistence.
+ */
+public interface SessionState {
 
-    /** [Initiator only] Socket connection has been established, LOGON has been sent to counter-party, but no Logon response has been received yet. */
-    InitiatedLogon,
+    /**
+     * @param newValue time in milliseconds
+     */
+    void setLastConnectionTimestamp(long newValue);
 
-    /** [Acceptor only] Socket connection has been established, LOGON has been received from counter-party, but no Logon response has been sent yet. */
-    ReceivedLogon,
+    /**
+     * @return time in milliseconds (-1 if unknown)
+     */
+    long getLastConnectionTimestamp();
 
-    /** This side initiated Logout, but the other side has not yet acknowledged it yet */
-    InitiatedLogout,
 
-    /** Socket connection is up and Logon messages exchanged, both sides can exchange application messages */
-    ApplicationConnected
+    void setNextSenderSeqNum(int newValue);
+
+    int getNextSenderSeqNum();
+
+    int consumeNextSenderSeqNum();
+
+
+    void setNextTargetSeqNum(int newValue);
+
+    int getNextTargetSeqNum();
+
+    int consumeNextTargetSeqNum();
+
+    void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException;
+
+    void resetNextSeqNums();
+
+
+    /**
+     * @param newValue time in milliseconds
+     */
+    void setLastReceivedMessageTimestamp(long newValue);
+
+    /**
+     * @return time in milliseconds (-1 if unknown)
+     */
+    long getLastReceivedMessageTimestamp();
+
+    /**
+     * @param newValue time in milliseconds
+     */
+    void setLastSentMessageTimestamp(long newValue);
+
+    /**
+     * @return time in milliseconds (-1 if unknown)
+     */
+    long getLastSentMessageTimestamp();
 
 }

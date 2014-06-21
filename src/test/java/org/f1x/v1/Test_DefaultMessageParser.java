@@ -12,23 +12,9 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.f1x.v1;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.Tools;
@@ -122,7 +108,7 @@ public class Test_DefaultMessageParser {
         byte [] buffer = new byte[mb.getLength()];
         mb.output(buffer, 0);
 
-        Assert.assertEquals("1=ABC|2=123|3=123|4=3.14159|5=x|6=Y|7=N|8=1|9=3|10=B|11=20121009-13:44:49.421|12=20121009|13=13:44:49.421|14=20121122|15=RAW|", new String(buffer).replace('\u0001', '|'));
+        assertMessageEquals("1=ABC|2=123|3=123|4=3.14159|5=x|6=Y|7=N|8=1|9=3|10=B|11=20121009-13:44:49.421|12=20121009|13=13:44:49.421|14=20121122|15=RAW|", new String(buffer));
 
         DefaultMessageParser parser = new DefaultMessageParser();
         parser.set(buffer, 0, buffer.length);
@@ -145,12 +131,39 @@ public class Test_DefaultMessageParser {
                 case 11: assertEquals(TestUtils.parseUTCTimestamp("20121009-13:44:49.421"), parser.getUTCTimestampValue()); break;
                 case 12: assertEquals(TestUtils.parseUTCTimestamp("20121009-00:00:00.000"), parser.getUTCDateOnly()); break;
                 case 13: assertEquals(13*60*60000+ 44*60000 + 49*1000 +421, parser.getUTCTimeOnly()); break;
-                case 14: assertEquals("20121122", localDateFormat.format(new Date(parser.getLocalMktDate()))); break;
+                case 14:
+                    assertEquals("20121122", localDateFormat.format(new Date(parser.getLocalMktDate())));
+                    assertEquals(20121122, parser.getLocalMktDate2()); break;
                 case 15: parser.getByteSequence(array); assertEquals("RAW", array.toString()); break;
             }
         }
-
     }
+
+    @Test
+    public void testReset () throws ParseException {
+        MessageBuilder mb = new ByteBufferMessageBuilder(256, 5);
+        mb.add(1, "ABC");
+        mb.add(2, 123L);
+        byte [] buffer = new byte[mb.getLength()];
+        mb.output(buffer, 0);
+
+        String expectedMessage = "1=ABC|2=123|";
+
+        assertMessageEquals(expectedMessage, new String(buffer));
+
+        DefaultMessageParser parser = new DefaultMessageParser();
+        parser.set(buffer, 0, buffer.length);
+
+        String parsedMessage = MessageParser2String.convert(parser);
+        assertMessageEquals(expectedMessage, parsedMessage);
+
+        parser.reset();
+        parsedMessage = MessageParser2String.convert(parser);
+        assertMessageEquals(expectedMessage, parsedMessage);
+    }
+
+
+
 
     private void parseTag (String message, int tagNo) {
         byte [] messageBytes = message.getBytes();
@@ -161,7 +174,10 @@ public class Test_DefaultMessageParser {
                 return;
         }
         Assert.fail("Tag " + tagNo + " is not found");
+    }
 
+    private static void assertMessageEquals(String expected, String actual) {
+        Assert.assertEquals("Message equals", expected, actual.replace('\u0001', '|'));
     }
 
     private void assertParser(String message) {

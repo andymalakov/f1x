@@ -11,7 +11,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.f1x.io;
 
 import org.f1x.log.MessageLog;
@@ -32,7 +31,7 @@ public final class LoggingOutputChannel implements OutputChannel {
         try {
             delegate.write(buffer, offset, length);
         } finally { //TODO: Should we do this in case of exception
-            logger.logOutbound(buffer, 0, length); // latency first
+            logger.log(false, buffer, 0, length); // latency first
         }
     }
 

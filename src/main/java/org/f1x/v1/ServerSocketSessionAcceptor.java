@@ -16,6 +16,7 @@ package org.f1x.v1;
 
 import org.f1x.io.socket.BindInterceptor;
 import org.f1x.io.socket.ConnectionInterceptor;
+import org.f1x.io.socket.DefaultConnectionInterceptor;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
@@ -26,10 +27,10 @@ import java.net.Socket;
 
 public abstract class ServerSocketSessionAcceptor implements Runnable {
 
-    protected static final GFLog LOGGER = GFLogFactory.getLog(MultiSessionAcceptor.class);
+    protected static final GFLog LOGGER = GFLogFactory.getLog(ServerSocketSessionAcceptor.class);
 
     private BindInterceptor bindInterceptor;
-    private ConnectionInterceptor connectionInterceptor;
+    private ConnectionInterceptor connectionInterceptor = new DefaultConnectionInterceptor();
     private final int bindPort;
     private final String bindAddress;
 

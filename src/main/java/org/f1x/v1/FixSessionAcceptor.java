@@ -12,28 +12,13 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.f1x.v1;
 
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.message.fields.FixTags;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.message.MessageParser;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
+import org.f1x.v1.schedule.SessionTimes;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
@@ -56,7 +41,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
         return sessionID;
     }
 
-    protected void connect(Socket socket, SessionID sessionID) throws IOException {
+    public void connect(Socket socket, SessionID sessionID) throws IOException {
         this.sessionID = sessionID;
         connect(socket);
     }
@@ -69,29 +54,89 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
     @Override
     public final void run() {
-        assertSessionState(SessionState.SocketConnected);
+        run0(null, 0);
+    }
+
+    // Mockito does not mock final methods.
+    public void run(byte[] logonBuffer, int length) {
+        checkLogonBuffer(logonBuffer, length);
+        run0(logonBuffer, length);
+    }
+
+    private void run0(byte[] logonBuffer, int length) {
+        if (!running.compareAndSet(false, true))
+            throw new IllegalStateException("Already running");
+
         try {
-            processInboundMessages();
+            init();
+            try {
+                work(logonBuffer, length);
+            } finally {
+                destroy();
+            }
+        } finally {
+            active = true;
+            running.set(false);
+        }
+    }
+
+    protected void work(byte[] logonBuffer, int length) {
+        assertSessionStatus(SessionStatus.SocketConnected);
+
+        boolean started = startSession();
+        if (!started) {
+            disconnect("Not session time");
+            return;
+        }
+
+        try {
+            processInboundMessages(logonBuffer, length);
         } catch (Throwable e) {
             LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
+        } finally {
+            endSession();
         }
-        assertSessionState(SessionState.Disconnected);
+
+        assertSessionStatus(SessionStatus.Disconnected);
     }
 
-    //TODO: What ensures that LOGON message is the first message we process?
-
-    /**
-     * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current state
-     */
     @Override
-    protected void processInboundLogon() throws IOException {
-
-        if (getSessionState() == SessionState.SocketConnected) {
-            setSessionState(SessionState.ReceivedLogon);
-            sendLogon(false);
-            setSessionState(SessionState.ApplicationConnected);
-        } else {
-            LOGGER.info().append("Unexpected LOGON (In-session sequence reset?)");
-        }
+    public FixAcceptorSettings getSettings() {
+        return (FixAcceptorSettings) super.getSettings();
     }
+
+    protected boolean startSession() {
+        if (schedule != null) {
+            final long now = timeSource.currentTimeMillis();
+
+            SessionTimes sessionTimes = schedule.getCurrentSessionTimes(now);
+            final long sessionStart = sessionTimes.getStart();
+            if (now < sessionStart)
+                return false;
+
+            final long lastConnectionTime = sessionState.getLastConnectionTimestamp();
+            if (lastConnectionTime < sessionStart)
+                sessionState.resetNextSeqNums();
+
+            long sessionEnd = sessionTimes.getEnd();
+            scheduleSessionEnd(sessionEnd - now);
+        }
+
+        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
+
+        return true;
+    }
+
+    protected void endSession() {
+        unscheduleSessionEnd();
+        unscheduleSessionMonitoring();
+    }
+
+    private static void checkLogonBuffer(byte[] logonBuffer, int length) {
+        if (logonBuffer == null)
+            throw new NullPointerException("logonBuffer == null");
+        if (length < 0 || logonBuffer.length < length)
+            throw new IllegalArgumentException("length < 0 || logonBuffer.length < length");
+    }
+
 }

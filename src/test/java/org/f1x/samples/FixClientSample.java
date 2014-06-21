@@ -12,19 +12,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.f1x.samples;
 
 import org.f1x.SessionIDBean;
@@ -35,13 +22,14 @@ import org.f1x.api.message.fields.*;
 import org.f1x.api.session.FixSession;
 import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionID;
-import org.f1x.api.session.SessionState;
+import org.f1x.api.session.SessionStatus;
 import org.f1x.v1.FixSessionInitiator;
 
 import java.io.IOException;
 
 public class FixClientSample {
     public static void main (String [] args) {
+        sample3();
     }
 
     public static void sample1() {
@@ -53,8 +41,8 @@ public class FixClientSample {
         final FixSession session = new FixSessionInitiator("localhost", 9999, FixVersion.FIX44, new SessionIDBean("SENDER-COMP-ID", "TARGET-COMP-ID"));
         session.setEventListener(new SessionEventListener() {
             @Override
-            public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
-                if (newState == SessionState.ApplicationConnected)
+            public void onStatusChanged(SessionID sessionID, SessionStatus oldStatus, SessionStatus newStatus) {
+                if (newStatus == SessionStatus.ApplicationConnected)
                     sendSampleMessage(session);
             }
         });
@@ -64,14 +52,14 @@ public class FixClientSample {
     public static void sample3 () {
         final FixSession session = new FixSessionInitiator("localhost", 9999, FixVersion.FIX44, new SessionIDBean("SENDER-COMP-ID", "TARGET-COMP-ID")) {
             @Override
-            protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+            protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
                 //TODO:
             }
         };
         session.setEventListener(new SessionEventListener() {
             @Override
-            public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
-                if (newState == SessionState.ApplicationConnected)
+            public void onStatusChanged(SessionID sessionID, SessionStatus oldStatus, SessionStatus newStatus) {
+                if (newStatus == SessionStatus.ApplicationConnected)
                     sendSampleMessage(session);
             }
         });
@@ -79,7 +67,7 @@ public class FixClientSample {
     }
 
     private static void sendSampleMessage(FixSession client) {
-        assert client.getSessionState() == SessionState.ApplicationConnected;
+        assert client.getSessionStatus() == SessionStatus.ApplicationConnected;
         MessageBuilder mb = client.createMessageBuilder(); // can be reused
         try {
             mb.clear();
