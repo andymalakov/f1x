@@ -45,6 +45,7 @@ import org.gflogger.GFLogFactory;
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Networking common for FIX Acceptor and FIX Initiator
@@ -98,11 +99,11 @@ public abstract class FixCommunicator implements FixSession {
     private final RawMessageAssembler messageAssembler;
 
     protected final TimeSource timeSource;
-    private TimerTask sessionEndTask;
+    private final AtomicReference<TimerTask> sessionMonitoringTask = new AtomicReference<>();
+    private final AtomicReference<TimerTask> sessionEndTask = new AtomicReference<>();
 
     private final Object sendLock = new Object();
 
-    protected TimerTask sessionMonitoringTask;
 
     public FixCommunicator (FixVersion fixVersion, FixSettings settings) {
         this(fixVersion, settings, RealTimeSource.INSTANCE);
@@ -325,14 +326,15 @@ public abstract class FixCommunicator implements FixSession {
     /** Send LOGOUT but do not drop socket connection (session enters {@link org.f1x.api.session.SessionStatus#InitiatedLogout} state)*/
     @Override
     public void logout(String cause) {
-        LOGGER.info().append("Initiating LOGOUT: ").append(cause).commit();
-
         if (status == SessionStatus.ApplicationConnected) { // TODO: lock
+            LOGGER.info().append("Initiating LOGOUT: ").append(cause).commit();
             try {
                 sendLogout(cause);
             } catch (IOException e) {
                 LOGGER.warn().append("Error logging out from FIX session: ").append(e).commit();
             }
+        } else {
+            LOGGER.info().append("Skipping LOGOUT (Not connected)").commit();
         }
     }
 
@@ -349,11 +351,14 @@ public abstract class FixCommunicator implements FixSession {
         long now = timeSource.currentTimeMillis();
         sessionState.setLastConnectionTimestamp(now);
         try {
-
-            in.close();
-            out.close();
-            in = null;
-            out = null;
+            if (in != null) { //TODO: Volatile
+                in.close();
+                in = null;
+            }
+            if (out != null) {
+                out.close();
+                out = null;
+            }
 
             if (messageLog != null) {
                 messageLog.close();
@@ -1028,18 +1033,38 @@ public abstract class FixCommunicator implements FixSession {
 
     }
 
+
+    /// Timers
+
     /** Schedules a timer to finish current FIX session according to FIX Session Schedule */
     protected void scheduleSessionEnd(long timeout) {
-        sessionEndTask = new SessionEndTask(this);
-        GlobalTimer.getInstance().schedule(sessionEndTask, timeout);
+        SessionEndTask timer = new SessionEndTask(this);
+        GlobalTimer.getInstance().schedule(timer, timeout);
+
+        sessionEndTask.set(timer);
     }
 
     /** Cancels a timer that was defined to finish current FIX session (if defined) */
     protected void unscheduleSessionEnd() {
-        if (sessionEndTask != null) {
-            sessionEndTask.cancel();
-            sessionEndTask = null;
+        TimerTask timer = sessionEndTask.getAndSet(null);
+        if (timer != null)
+            timer.cancel();
+    }
+
+    protected void scheduleSessionMonitoring(long period){
+        if (sessionMonitoringTask != null) {
+            SessionMonitoringTask timer = new SessionMonitoringTask(this);
+            GlobalTimer.getInstance().schedule(timer, period, period);
+            sessionMonitoringTask.set(timer);
+        } else {
+            LOGGER.warn().append("Monitoring task already defined").commit();
         }
+    }
+
+    protected void unscheduleSessionMonitoring() {
+        TimerTask timer = sessionMonitoringTask.getAndSet(null);
+        if (timer != null)
+            timer.cancel();
     }
 
     SessionState getSessionState() {
@@ -1050,21 +1075,7 @@ public abstract class FixCommunicator implements FixSession {
         return timeSource;
     }
 
-    protected void scheduleSessionMonitoring(long period){
-        if (sessionMonitoringTask == null) {
-            sessionMonitoringTask = new SessionMonitoringTask(this);
-            GlobalTimer.getInstance().schedule(sessionMonitoringTask, period, period);
-        } else {
-            LOGGER.warn().append("Monitoring task already defined").commit();
-        }
-    }
 
-    protected void unscheduleSessionMonitoring() {
-        if (sessionMonitoringTask != null) {
-            sessionMonitoringTask.cancel();
-            sessionMonitoringTask = null;
-        }
-    }
 
 
 }
