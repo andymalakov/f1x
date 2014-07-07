@@ -18,6 +18,8 @@ import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
+import org.f1x.io.InputChannel;
+import org.f1x.io.OutputChannel;
 import org.f1x.v1.schedule.SessionTimes;
 
 import java.net.ConnectException;
@@ -90,6 +92,12 @@ public class FixSessionInitiator extends FixSocketCommunicator {
             if (!(e instanceof InterruptedException))
                 LOGGER.warn().append("Error in initiator loop (ignoring)").append(e).commit();
         }
+    }
+
+    @Override
+    protected void connect(InputChannel in, OutputChannel out) {
+        assert Thread.currentThread() == initiatorThread.get();
+        super.connect(in, out);
     }
 
     protected void startSession(boolean needPause) throws InterruptedException {
