@@ -31,13 +31,15 @@ final class SessionMonitoringTask extends TimerTask {
     }
 
     private void checkInbound(long currentTime) {
-        long lastReceivedMessageTimestamp = communicator.getSessionState().getLastReceivedMessageTimestamp();
-        if (lastReceivedMessageTimestamp < currentTime - heartbeatInterval) {
-            LOGGER.debug().append("Inactivity of opposite side reached the limit. Send Test Request (1) message.").commit();
-            try {
-                communicator.sendTestRequest("Are you there?"); // TODO: testReqId Generator?
-            } catch (IOException e) {
-                LOGGER.warn().append("Error sending Test Request (1)").append(e).commit();
+        if (communicator.getSessionStatus() == SessionStatus.ApplicationConnected) {
+            long lastReceivedMessageTimestamp = communicator.getSessionState().getLastReceivedMessageTimestamp();
+            if (lastReceivedMessageTimestamp < currentTime - heartbeatInterval) {
+                LOGGER.debug().append("Haven't heard from the other side for a while. Sending TEST(1) message to validate connection.").commit();
+                try {
+                    communicator.sendTestRequest("Are you there?"); // TODO: testReqId Generator?
+                } catch (IOException e) {
+                    LOGGER.warn().append("Error sending TEST(1)").append(e).commit();
+                }
             }
         }
     }
@@ -45,11 +47,11 @@ final class SessionMonitoringTask extends TimerTask {
     private void checkOutbound(long currentTime) {
         long lastSentMessageTimestamp = communicator.getSessionState().getLastSentMessageTimestamp();
         if (lastSentMessageTimestamp < currentTime - heartbeatInterval) {
-            LOGGER.debug().append("Inactivity of our side reached the limit. Send Heartbeat (0) message.").commit();
+            LOGGER.debug().append("Connection is idle. Sending HEARTBEAT(0) to confirm connection.").commit();
             try {
                 communicator.sendHeartbeat(null);
             } catch (IOException e) {
-                LOGGER.warn().append("Error sending Heartbeat(0)").append(e).commit();
+                LOGGER.warn().append("Error sending HEARTBEAT(0)").append(e).commit();
             }
         }
     }
