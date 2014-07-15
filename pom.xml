@@ -107,6 +107,12 @@
             <version>1.5.3_1</version>
             <scope>test</scope>
         </dependency>
+		<dependency>
+			<groupId>net.jcip</groupId>
+			<artifactId>jcip-annotations</artifactId>
+			<version>1.0</version>
+			<scope>compile</scope>
+		</dependency>
         <!-- Follow instructions above to install GFLogger into local repository
         <dependency>
             <groupId>org.gflogger</groupId>
