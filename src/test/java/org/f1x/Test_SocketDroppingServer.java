@@ -113,6 +113,8 @@ public class Test_SocketDroppingServer extends  TestCommon {
 
         @Override
         protected void processInboundLogon(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException, ConnectionProblemException {
+            super.processInboundLogon(msgSeqNumX, parser);
+
             TIMER.schedule(new SocketDroppingTimer(), RND.nextInt(10));
         }
 
