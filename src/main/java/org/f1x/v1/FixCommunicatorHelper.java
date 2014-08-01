@@ -45,15 +45,6 @@ class FixCommunicatorHelper {
         return bodyLength;
     }
 
-    static boolean checkTargetMsgSeqNum(int actual, int expected) throws InvalidFixMessageException, IOException {
-        // If the incoming message has a sequence number less than expected and the PossDupFlag is not set, it indicates a serious error.
-        // It is strongly recommended that the session be terminated and manual intervention be initiated.
-        if (actual < expected)
-            throw InvalidFixMessageException.TARGET_MSG_SEQ_NUM_LESS_EXPECTED;
-
-        return actual == expected;
-    }
-
     static void checkMessageLength(int messageLength, int maxMessageLength) throws InvalidFixMessageException {
         if(messageLength > maxMessageLength)
             throw InvalidFixMessageException.MESSAGE_TOO_LARGE;
