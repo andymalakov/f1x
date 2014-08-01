@@ -58,6 +58,9 @@ final class RawMessageAssembler {
     }
 
     void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore, long sendingTime,  OutputChannel out) throws IOException {
+        if (out == null)
+            throw new IllegalStateException("Not connected");
+
         int offset = BEGIN_STRING.length;
 
         final CharSequence msgType = messageBuilder.getMessageType();
