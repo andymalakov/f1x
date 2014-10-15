@@ -121,7 +121,7 @@ public class LatencyTestClient extends FixSessionInitiator {
         while (getSessionStatus() == SessionStatus.ApplicationConnected) {
             try {
                 long nextNanoTime = (intervalBetweenMessagesInNanos != 0) ? System.nanoTime() + intervalBetweenMessagesInNanos : 0;
-                while (active) {
+                while (true) { //TODO: Was: while (active)
                     if (intervalBetweenMessagesInNanos != 0) {
                         if (System.nanoTime() < nextNanoTime)
                             continue; // spin-wait

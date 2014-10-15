@@ -24,6 +24,7 @@ import org.gflogger.GFLogFactory;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * FIX Communicator that plays FIX Accepts role for inbound FIX connections
@@ -31,6 +32,7 @@ import java.net.Socket;
 public class FixSessionAcceptor extends FixSocketCommunicator {
     protected static final GFLog LOGGER = GFLogFactory.getLog(FixSessionAcceptor.class);
     private SessionID sessionID;
+    private final AtomicBoolean running = new AtomicBoolean();
 
     public FixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
         super(fixVersion, settings);
@@ -75,7 +77,8 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
                 destroy();
             }
         } finally {
-            active = true;
+            //TODO: Find a better way to recycle state
+            // closeInProgress = false;
             running.set(false);
         }
     }
@@ -85,7 +88,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
         boolean started = startSession();
         if (!started) {
-            disconnect("Not session time");
+            disconnect("Session is down");
             return;
         }
 
@@ -122,6 +125,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
             scheduleSessionEnd(sessionEnd - now);
         }
 
+        //TODO: Do this when we transition to ApplicationConnected
         scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
 
         return true;
@@ -129,6 +133,8 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
 
     protected void endSession() {
         unscheduleSessionEnd();
+
+        //TODO: Do this when we transition from ApplicationConnected
         unscheduleSessionMonitoring();
     }
 

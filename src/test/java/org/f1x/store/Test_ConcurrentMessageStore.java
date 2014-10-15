@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 public class Test_ConcurrentMessageStore extends TestCommon {
-    private static final int NUM_CLIENTS = 16;
+    private static final int NUM_CLIENT_THREADS = 16;
     private static final int NUM_MESSAGES_PER_CLIENT_THREAD = 1024;
     private static final int MAX_MESSAGE_SIZE = 4096;
 
@@ -46,6 +46,12 @@ public class Test_ConcurrentMessageStore extends TestCommon {
     private final SessionID ServerSessionID = new SessionIDBean(ACCEPTOR_SENDER_ID, INITIATOR_SENDER_ID);
     private final SessionID ClientSessionID = new SessionIDBean(INITIATOR_SENDER_ID, ACCEPTOR_SENDER_ID);
 
+
+    /**
+     * This test uses simple FIX client and FIX server that have in-memory message store.
+     * Test uses NUM_CLIENT_THREADS threads to send messages to server concurrently.
+     * At the end we validate that message stores on client and server match (server stores inbound messages into aux msg store).
+     */
     @Test(timeout = 120000)
     public void concurrentSend() throws InterruptedException, IOException {
 
@@ -66,15 +72,16 @@ public class Test_ConcurrentMessageStore extends TestCommon {
 
         client.waitForAllMessages();
 
-        client.disconnect("End of test");
         client.close();
+        //client.close();
+        System.out.println("Closing server");
         server.close();
 
         // compare sent and received messages
         final int comparedPrefixSize = 150;
         final byte [] sentMessageBuffer= new byte [MAX_MESSAGE_SIZE];
         final byte [] receivedMessageBuffer= new byte [MAX_MESSAGE_SIZE];
-        for (int i=2; i <= NUM_CLIENTS*NUM_MESSAGES_PER_CLIENT_THREAD; i++) {
+        for (int i=2; i <= NUM_CLIENT_THREADS *NUM_MESSAGES_PER_CLIENT_THREAD; i++) {
 
             Assert.assertEquals("Sent MsgSeqNum", i, sentMessages.get(i, sentMessageBuffer));
             Assert.assertEquals("Received MsgSeqNum", i, receivedMessages.get(i, receivedMessageBuffer));
@@ -117,12 +124,12 @@ public class Test_ConcurrentMessageStore extends TestCommon {
     }
 
     private static class TestClient extends FixSessionInitiator {
-        private final ClientSendingThread [] clientThreads = new ClientSendingThread [NUM_CLIENTS];
-        private final CountDownLatch activeClientThreads = new CountDownLatch(NUM_CLIENTS);
+        private final ClientSendingThread [] clientThreads = new ClientSendingThread [NUM_CLIENT_THREADS];
+        private final CountDownLatch activeClientThreads = new CountDownLatch(NUM_CLIENT_THREADS);
 
         public TestClient(int port, SessionID sessionID, MessageStore messageStore) {
             super(null, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings());
-            for (int i = 0; i < NUM_CLIENTS; i++)
+            for (int i = 0; i < NUM_CLIENT_THREADS; i++)
                 clientThreads [i] = new ClientSendingThread(this, i);
 
             setMessageStore(messageStore);
@@ -132,7 +139,7 @@ public class Test_ConcurrentMessageStore extends TestCommon {
         protected void onSessionStatusChanged(SessionStatus oldStatus, SessionStatus newStatus) {
             super.onSessionStatusChanged(oldStatus, newStatus);
             if (newStatus == SessionStatus.ApplicationConnected)
-                for (int i = 0; i < NUM_CLIENTS; i++)
+                for (int i = 0; i < NUM_CLIENT_THREADS; i++)
                     if ( ! clientThreads[i].isAlive())
                         clientThreads[i].start();
         }

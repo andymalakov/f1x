@@ -71,7 +71,6 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
             }
         });
 
-        communicator.active = true;
         communicator.setSessionState(sessionState);
         communicator.setMessageStore(messageStore);
     }
@@ -317,7 +316,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     @Test
     public void testLogout() {
         String inboundLogout = "8=FIX.4.4|9=57|35=5|34=1|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|10=020|";
-        String expectedOutboundLogout = "8=FIX.4.4|9=89|35=5|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|58=Responding to Logout request|10=101|";
+        String expectedOutboundLogout = "8=FIX.4.4|9=92|35=5|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|58=Responding to LOGOUT(5) request|10=069|";
 
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundLogout);
@@ -337,7 +336,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     public void testLogoutWithSeqNumMoreExpected() {
         String inboundLogout = "8=FIX.4.4|9=57|35=5|34=5|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|10=020|";
         String expectedOutboundResendRequest = "8=FIX.4.4|9=66|35=2|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=1|16=4|10=082|";
-        String expectedOutboundLogout = "8=FIX.4.4|9=89|35=5|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|58=Responding to Logout request|10=102|";
+        String expectedOutboundLogout = "8=FIX.4.4|9=92|35=5|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|58=Responding to LOGOUT(5) request|10=070|";
 
         setSessionStatus(SessionStatus.ApplicationConnected);
         String actualOutboundMessages = simulateProcessing(inboundLogout);

@@ -18,10 +18,13 @@ import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
+import org.f1x.io.InputChannel;
+import org.f1x.io.OutputChannel;
 import org.f1x.v1.schedule.SessionTimes;
 
 import java.net.ConnectException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * FIX Communicator that initiates outbound FIX connections
@@ -32,7 +35,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     private final String host;
     private final int port;
 
-    private volatile Thread initiatorThread;
+    private final AtomicReference<Thread> initiatorThread = new AtomicReference<>();
 
     public FixSessionInitiator(String host, int port, FixVersion fixVersion, SessionID sessionID) {
         this(host, port, fixVersion, sessionID, new FixInitiatorSettings());
@@ -57,10 +60,8 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
     @Override
     public void run() {
-        if (!running.compareAndSet(false, true))
-            throw new IllegalStateException("Already running");
-
-        initiatorThread = Thread.currentThread();
+        if ( ! initiatorThread.compareAndSet(null, Thread.currentThread()))
+            throw new IllegalStateException("Another thread already using this initiator");
 
         try {
             init();
@@ -70,9 +71,8 @@ public class FixSessionInitiator extends FixSocketCommunicator {
                 destroy();
             }
         } finally {
-            initiatorThread = null;
-            active = true; //TODO: Can we delay it till the moment we need to reuse
-            running.set(false);
+            // active = true; //TODO: Can we delay it till the moment we need to reuse
+            initiatorThread.set(null);
             LOGGER.info().append("Terminating FIX Initiator thread").commit();
         }
     }
@@ -80,7 +80,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     protected void work() {
         boolean needPause = false;
         try {
-            while (active) {
+            while ( ! closeInProgress) {
                 try {
                     startSession(needPause);
                     needPause = !processInboundMessages();
@@ -92,6 +92,12 @@ public class FixSessionInitiator extends FixSocketCommunicator {
             if (!(e instanceof InterruptedException))
                 LOGGER.warn().append("Error in initiator loop (ignoring)").append(e).commit();
         }
+    }
+
+    @Override
+    protected void connect(InputChannel in, OutputChannel out) {
+        assert Thread.currentThread() == initiatorThread.get();
+        super.connect(in, out);
     }
 
     protected void startSession(boolean needPause) throws InterruptedException {
@@ -144,7 +150,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
 
         assertSessionStatus(SessionStatus.Disconnected);
 
-        while (active && getSessionStatus() == SessionStatus.Disconnected) {
+        while ( ! closeInProgress && getSessionStatus() == SessionStatus.Disconnected) {
             try {
                 LOGGER.info().append("Connecting...").commit();
                 connect(new Socket(host, port));
@@ -179,7 +185,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     public void close() {
         super.close();
 
-        Thread initiatorThread = this.initiatorThread;
+        Thread initiatorThread = this.initiatorThread.get();
         if (initiatorThread != null)
             initiatorThread.interrupt();
     }

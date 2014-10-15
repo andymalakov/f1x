@@ -37,7 +37,7 @@ public interface SessionSchedule {
      * </pre>
      *
      * @return exact times of the current session (if method is called during active session hours) or the next session (if method is called after session hours).
-     * @param currentTime
+     * @param currentTime Current time which can be used by implementation to set calendar. For example, {@link org.f1x.util.TimeSource#currentTimeMillis()}.
      */
     SessionTimes getCurrentSessionTimes(long currentTime);
 }

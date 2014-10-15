@@ -40,9 +40,9 @@ public class Test_FixCommunicatorSplitMessages {
     private static class MessageCollectingTestFixCommunicator extends TestFixCommunicator{
         private List<String> parsedMessages = new ArrayList<>();
 
+
         public MessageCollectingTestFixCommunicator() {
             super(new SessionIDBean("CLIENT", "SERVER"), StoredTimeSource.makeFromUTCTimestamp("20140101-10:10:10.100"));
-            active = true;
         }
 
         @Override
@@ -53,9 +53,7 @@ public class Test_FixCommunicatorSplitMessages {
 
         @Override
         protected void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
-            if (e == ConnectionProblemException.NO_SOCKET_DATA)
-                active = false;
-            else
+            if (e != ConnectionProblemException.NO_SOCKET_DATA)
                throw new RuntimeException(errorText + ": " + e.getMessage());
         }
     }
