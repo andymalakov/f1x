@@ -185,8 +185,13 @@ public abstract class FixCommunicator implements FixSession {
     protected void onSessionStatusChanged(final SessionStatus oldStatus, final SessionStatus newStatus) {
         SessionID sessionID = getSessionID();
         LOGGER.info().append("Session ").append(sessionID).append(" changed status ").append(oldStatus).append(" => ").append(newStatus).commit();
-        if (eventListener != null)
-            eventListener.onStatusChanged(sessionID, oldStatus, newStatus);
+        if (eventListener != null) {
+            try {
+                eventListener.onStatusChanged(sessionID, oldStatus, newStatus);
+            } catch (Throwable e) {
+                LOGGER.error().append("Error notifying about status change ").append(e).commit();
+            }
+        }
     }
 
     protected final void assertSessionStatus(SessionStatus expectedStatus) {
