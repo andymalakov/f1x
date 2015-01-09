@@ -15,18 +15,15 @@
 package org.f1x.v1;
 
 import org.f1x.api.FixVersion;
-import org.f1x.api.message.Tools;
-import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
+import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.FixTags;
+import org.f1x.api.session.SessionID;
 import org.f1x.io.OutputChannel;
 import org.f1x.store.MessageStore;
 import org.f1x.util.AsciiUtils;
-import org.f1x.util.TimeSource;
 import org.f1x.util.format.IntFormatter;
 import org.f1x.util.format.TimestampFormatter;
-import org.gflogger.GFLog;
-import org.gflogger.GFLogFactory;
 
 import java.io.IOException;
 
@@ -71,7 +68,7 @@ final class RawMessageAssembler {
         int bodyLength = (4 + msgType.length()) +
             (4 + IntFormatter.stringSize(msgSeqNum)) +
             (4 + TimestampFormatter.DATE_TIME_LENGTH) +
-            (4 + sessionID.getSenderCompId().length()) +   //TODO: Precompute
+            (4 + sessionID.getSenderCompId().length()) +   // T O D O: Pre-compute and keep in session ID?
             (4 + sessionID.getTargetCompId().length()) +
             messageBuilder.getLength();
 
@@ -81,7 +78,7 @@ final class RawMessageAssembler {
         if (targetSubId != null)
             bodyLength += 4 + targetSubId.length();
 
-
+        // Standard Header tags
         offset = setIntField(FixTags.BodyLength, bodyLength, buffer, offset);
         offset = setTextField(FixTags.MsgType, msgType, buffer, offset);
         offset = setIntField(FixTags.MsgSeqNum, msgSeqNum, buffer, offset);
@@ -93,9 +90,11 @@ final class RawMessageAssembler {
         if (targetSubId != null)
             offset = setTextField(FixTags.TargetSubID, targetSubId, buffer, offset);
 
+        // Message-specific and custom tags
         offset = messageBuilder.output(buffer, offset);
 
-        int checkSum = Tools.calcCheckSum(buffer, offset);  //TODO: Let  MessageBuilder accumulate payload checksum?
+        // Standard footer
+        int checkSum = Tools.calcCheckSum(buffer, offset);  //T O D O: Let MessageBuilder accumulate payload checksum as we build each message
         offset = set3DigitIntField(FixTags.CheckSum, checkSum, buffer, offset);
 
         try {
@@ -135,12 +134,9 @@ final class RawMessageAssembler {
     private int setUtcTimestampField(int tagNo, long value, byte[] buffer, int offset) {
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
-        //synchronized (timestampFormatter) {
-            offset = timestampFormatter.formatDateTime(value, buffer, offset);
-        //}
+        offset = timestampFormatter.formatDateTime(value, buffer, offset);
         buffer[offset++] = SOH;
         return offset;
     }
-
 
 }

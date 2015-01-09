@@ -20,52 +20,50 @@ import org.f1x.v1.InvalidFixMessageException;
  */
 public interface SessionState {
 
-    /**
-     * @param newValue time in milliseconds
-     */
-    void setLastConnectionTimestamp(long newValue);
-
-    /**
-     * @return time in milliseconds (-1 if unknown)
-     */
-    long getLastConnectionTimestamp();
-
-
     void setNextSenderSeqNum(int newValue);
-
     int getNextSenderSeqNum();
-
+    /** "increment and get" for {@link #getNextSenderSeqNum() SenderSeqNum} */
     int consumeNextSenderSeqNum();
 
 
     void setNextTargetSeqNum(int newValue);
-
     int getNextTargetSeqNum();
-
+    /** "increment and get" for {@link #getNextTargetSeqNum() TargetSeqNum} */
     int consumeNextTargetSeqNum();
+
 
     void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException;
 
     void resetNextSeqNums();
 
+    /**
+     * @param newValue time of the last disconnect after successful connection to other counter-party. Measured in in milliseconds (-1 if unknown)
+     */
+    void setLastConnectionTimestamp(long newValue);
 
     /**
-     * @param newValue time in milliseconds
+     * @return time of the last last disconnect after successful connection to other counter-party. Measured in in milliseconds (-1 if unknown)
+     */
+    long getLastConnectionTimestamp();
+
+
+    /**
+     * @param newValue time of the last message received by our side. Measured in in milliseconds (-1 if unknown)
      */
     void setLastReceivedMessageTimestamp(long newValue);
 
     /**
-     * @return time in milliseconds (-1 if unknown)
+     * @return time of the last message received by our side. Measured in in milliseconds (-1 if unknown)
      */
     long getLastReceivedMessageTimestamp();
 
     /**
-     * @param newValue time in milliseconds
+     * @param newValue time of the last message send from our side. Measured in in milliseconds (-1 if unknown)
      */
     void setLastSentMessageTimestamp(long newValue);
 
     /**
-     * @return time in milliseconds (-1 if unknown)
+     * @return time of the last message send from our side. Measured in in milliseconds (-1 if unknown)
      */
     long getLastSentMessageTimestamp();
 

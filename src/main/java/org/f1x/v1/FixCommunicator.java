@@ -48,7 +48,7 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Networking common for FIX Acceptor and FIX Initiator
+ * Common networking code for FIX Acceptor and FIX Initiator
  */
 public abstract class FixCommunicator implements FixSession {
     private static final int MIN_FIX_MESSAGE_LENGTH = 63; // min message example: 8=FIX.4.?|9=??|35=?|34=?|49=?|56=?|52=YYYYMMDD-HH:MM:SS|10=???|
@@ -79,7 +79,7 @@ public abstract class FixCommunicator implements FixSession {
 
     private volatile SessionStatus status = SessionStatus.Disconnected;
 
-    /** This flag is set when communicator is going thought graceful disconnect initiated by this side.
+    /** This flag is set when communicator is going though graceful disconnect initiated by this side.
      * We continue to process inbound requests but do not make new attempts to establish socket connections.
      * Typically inbound LOGOUT in this state causes disconnect.
       */
@@ -231,7 +231,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     /** Process inbound messages until session ends
-     * @param logonBuffer buffer containing session LOGON message and may be some other messages or a part of them
+     * @param logonBuffer buffer containing session LOGON message and may be some other messages or a part of them (can be null)
      * @param length actual number of bytes that should be consumed from logonBuffer
      */
     protected final boolean processInboundMessages(byte[] logonBuffer, int length) {
@@ -396,23 +396,23 @@ public abstract class FixCommunicator implements FixSession {
      */
     @Override
     public void send(MessageBuilder messageBuilder) throws IOException {
+        long now = timeSource.currentTimeMillis();
         synchronized (sendLock) {
             int msgSeqNum = sessionState.consumeNextSenderSeqNum();
-            long now = timeSource.currentTimeMillis();
-            sessionState.setLastSentMessageTimestamp(now);
             messageAssembler.send(getSessionID(), msgSeqNum, messageBuilder, messageStore, now, out);
         }
+        sessionState.setLastSentMessageTimestamp(now);
     }
 
     /**
      * Resend a message with given sequence number. The message is not persisted in message store.
      */
     protected void resend(MessageBuilder messageBuilder, int forcedMsgSeqNum) throws IOException {
+        long now = timeSource.currentTimeMillis();
         synchronized (sendLock) {
-            long now = timeSource.currentTimeMillis();
-            sessionState.setLastSentMessageTimestamp(now);
             messageAssembler.send(getSessionID(), forcedMsgSeqNum, messageBuilder, null, now, out);
         }
+        sessionState.setLastSentMessageTimestamp(now);
     }
 
     /** @param forceResetSequenceNumbers pass true to force sequence numbers reset, otherwise implementation will rely on {@link org.f1x.api.FixSettings#isResetSequenceNumbersOnEachLogon()} */

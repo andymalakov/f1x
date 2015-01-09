@@ -81,7 +81,7 @@ public interface MessageBuilder {
     /** Copy current content into given buffer */
     int output(byte[] buffer, int offset);
 
-    /** return current length of message body (in bytes) */
+    /** @return current length of message body (in bytes) */
     int getLength();
 
     /** Clear current content before building content for a new message */
