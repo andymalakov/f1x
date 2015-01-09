@@ -185,8 +185,13 @@ public abstract class FixCommunicator implements FixSession {
     protected void onSessionStatusChanged(final SessionStatus oldStatus, final SessionStatus newStatus) {
         SessionID sessionID = getSessionID();
         LOGGER.info().append("Session ").append(sessionID).append(" changed status ").append(oldStatus).append(" => ").append(newStatus).commit();
-        if (eventListener != null)
-            eventListener.onStatusChanged(sessionID, oldStatus, newStatus);
+        if (eventListener != null) {
+            try {
+                eventListener.onStatusChanged(sessionID, oldStatus, newStatus);
+            } catch (Throwable e) {
+                LOGGER.error().append("Error notifying about status change ").append(e).commit();
+            }
+        }
     }
 
     protected final void assertSessionStatus(SessionStatus expectedStatus) {
@@ -638,7 +643,7 @@ public abstract class FixCommunicator implements FixSession {
         final boolean possDup;
         if (msgSeqNumX > 0) { // PossDupFlag=N
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-            if ( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) //Let's imagine we expected MsgSeqNum=5 but received 10
+            if ( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) //Let's imagine we expected MsgSeqNum=5 but received 10
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX - 1);   //This will send ResendRequest(5, 0) and set currentResendEndSeqNo=9
 
             sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
@@ -704,7 +709,7 @@ public abstract class FixCommunicator implements FixSession {
             throw InvalidFixMessageException.IN_SESSION_LOGON_MESSAGE_WITHOUT_MSG_SEQ_RESET_NOT_EXPECTED;
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
 
         if (currentStatus == SessionStatus.SocketConnected) {
@@ -736,7 +741,7 @@ public abstract class FixCommunicator implements FixSession {
 
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
 
         temporaryByteArrayReference.clear();
         while (parser.next()) {
@@ -785,7 +790,7 @@ public abstract class FixCommunicator implements FixSession {
         }
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        if( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum))
+        if( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum))
             sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
 
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
@@ -800,7 +805,7 @@ public abstract class FixCommunicator implements FixSession {
         }
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
         if (expectedTargetMsgSeqNum) {
 
@@ -831,7 +836,7 @@ public abstract class FixCommunicator implements FixSession {
             return;
         }
 
-        boolean expectedTargetMsgSeqNum = FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
+        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
         sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
 
         int beginSeqNo = -1;
@@ -985,7 +990,7 @@ public abstract class FixCommunicator implements FixSession {
         //noinspection StatementWithEmptyBody
         if (isGapFill) {
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-            if( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)){
+            if( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)){
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
             }
         } else {
@@ -994,7 +999,10 @@ public abstract class FixCommunicator implements FixSession {
         }
 
         try {
-            sessionState.resetNextTargetSeqNum(newSeqNum);
+            if (newSeqNum <= sessionState.getNextTargetSeqNum())
+               throw InvalidFixMessageException.RESET_BELOW_CURRENT_SEQ_LARGE;
+
+            sessionState.setNextTargetSeqNum(newSeqNum);
         } catch (InvalidFixMessageException e) {
             sendReject(msgSeqNumX, SessionRejectReason.INCORRECT_DATA_FORMAT_FOR_VALUE, e.getMessage());
         }
@@ -1006,7 +1014,7 @@ public abstract class FixCommunicator implements FixSession {
         // Skip sequence number checking if we are dealing with GapFill
         if (msgSeqNumX > 0) {
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-            if ( ! FixCommunicatorHelper.checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) {
+            if ( ! checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum)) {
                 sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
             }
             sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
@@ -1075,7 +1083,19 @@ public abstract class FixCommunicator implements FixSession {
         return timeSource;
     }
 
+    /**
+     * <p>Check message sequence number of inbound message. This method is not called for inbound messages that have PossDupFlag(43)=Y.</p>
+     * 
+     * <p> If the incoming message has a sequence number less than expected and the PossDupFlag is not set, it indicates a serious error.
+     * It is strongly recommended that the session be terminated and manual intervention be initiated.
+     * Default implementation throws TARGET_MSG_SEQ_NUM_LESS_EXPECTED exception in this case. </p>
+     * @return true if actual sequence number match expected or false if Communicator should issue RESEND(2) request from <tt>expected</tt> till <tt>actual</tt>.
+     */
+    protected boolean checkTargetMsgSeqNum(int actual, int expected) throws InvalidFixMessageException, IOException {
+        if (actual < expected)
+            throw InvalidFixMessageException.TARGET_MSG_SEQ_NUM_LESS_EXPECTED;
 
-
+        return actual == expected;
+    }
 
 }

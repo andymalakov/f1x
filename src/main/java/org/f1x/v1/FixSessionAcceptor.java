@@ -95,7 +95,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
         try {
             processInboundMessages(logonBuffer, length);
         } catch (Throwable e) {
-            LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
+            LOGGER.error().append("Terminating FIX Acceptor due to error: ").append(e).commit();
         } finally {
             endSession();
         }
