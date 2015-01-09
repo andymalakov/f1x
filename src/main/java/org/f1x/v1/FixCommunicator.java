@@ -999,7 +999,10 @@ public abstract class FixCommunicator implements FixSession {
         }
 
         try {
-            sessionState.resetNextTargetSeqNum(newSeqNum);
+            if (newSeqNum <= sessionState.getNextTargetSeqNum())
+               throw InvalidFixMessageException.RESET_BELOW_CURRENT_SEQ_LARGE;
+
+            sessionState.setNextTargetSeqNum(newSeqNum);
         } catch (InvalidFixMessageException e) {
             sendReject(msgSeqNumX, SessionRejectReason.INCORRECT_DATA_FORMAT_FOR_VALUE, e.getMessage());
         }
