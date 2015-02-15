@@ -9,21 +9,21 @@ import java.nio.MappedByteBuffer;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 
-public class Test_FileSessionState extends SessionStateTest {
+public class Test_MemoryMappedSessionState extends SessionStateTest {
 
     private Path tempFile;
 
     @Override
-    protected FileSessionState createSessionState() throws IOException {
+    protected MemoryMappedSessionState createSessionState() throws IOException {
         Files.createTempDirectory(null);
         tempFile = Files.createTempFile(null, null);
         Files.delete(tempFile);
-        return new FileSessionState(tempFile);
+        return new MemoryMappedSessionState(tempFile);
     }
 
     @Override
     public void destroy() throws IOException {
-        FileSessionState sessionState = (FileSessionState) this.sessionState;
+        MemoryMappedSessionState sessionState = (MemoryMappedSessionState) this.sessionState;
         unmap(sessionState.buffer);
         Files.deleteIfExists(tempFile);
         super.destroy();
@@ -35,7 +35,7 @@ public class Test_FileSessionState extends SessionStateTest {
         try {
             Path tempFile = Paths.get(tempDirectory.toString(), "1", "2", "3", "4", "5", "6", "7");
             try {
-                FileSessionState sessionState = new FileSessionState(tempFile);
+                MemoryMappedSessionState sessionState = new MemoryMappedSessionState(tempFile);
                 unmap(sessionState.buffer);
             } finally {
                 Files.walkFileTree(tempDirectory, new SimpleFileVisitor<Path>() {

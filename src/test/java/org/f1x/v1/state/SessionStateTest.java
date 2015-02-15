@@ -59,17 +59,9 @@ public abstract class SessionStateTest {
             Assert.assertEquals(nextTargetSeqNum, sessionState.getNextTargetSeqNum());
         }
 
-        for (int nextTargetSeqNum = 2; nextTargetSeqNum < 2000; nextTargetSeqNum++) {
-            sessionState.setNextTargetSeqNum(nextTargetSeqNum - 1);
-            sessionState.resetNextTargetSeqNum(nextTargetSeqNum);
+        for (int nextTargetSeqNum = 1; nextTargetSeqNum < 2000; nextTargetSeqNum++) {
+            sessionState.setNextTargetSeqNum(nextTargetSeqNum);
             Assert.assertEquals(nextTargetSeqNum, sessionState.getNextTargetSeqNum());
-
-            try {
-                sessionState.resetNextTargetSeqNum(nextTargetSeqNum);
-                Assert.fail();
-            } catch (InvalidFixMessageException e) {
-                // skip
-            }
         }
     }
 

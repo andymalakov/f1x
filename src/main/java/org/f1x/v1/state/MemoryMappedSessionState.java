@@ -15,15 +15,23 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 /**
+ * Session State backed by memory mapped file. Each update action is persistent.
+ *
  * Thread safe.
- * Offset       Description
- * 0            last logon timestamp
- * 17           next sender seq num
- * 26           next target seq num
+ *
+ * NOTE: Not suitable for IKVM environment due to frequent allocations (System.IntPtr ) made by IKVM implementation of DirectByteBuffer.
+ *
+ * <pre>
+ * Offset  |     Description
+ * =================================
+ * 0       |     last logon timestamp
+ * 17      |     next sender seq num
+ * 26      |     next target seq num
+ * </pre>
  */
-public class FileSessionState extends AbstractSessionState {
+public class MemoryMappedSessionState extends AbstractSessionState {
 
-    protected static final GFLog LOGGER = GFLogFactory.getLog(FileSessionState.class);
+    protected static final GFLog LOGGER = GFLogFactory.getLog(MemoryMappedSessionState.class);
 
     protected static final int SIZE_OF_BYTE = 1;
     protected static final int SIZE_OF_INT = 4;
@@ -40,15 +48,15 @@ public class FileSessionState extends AbstractSessionState {
 
     final MappedByteBuffer buffer; // only for tests
 
-    public FileSessionState(String filePath) throws IOException {
+    public MemoryMappedSessionState(String filePath) throws IOException {
         this(Paths.get(filePath));
     }
 
-    public FileSessionState(File file) throws IOException {
+    public MemoryMappedSessionState(File file) throws IOException {
         this(file.toPath());
     }
 
-    public FileSessionState(Path file) throws IOException {
+    public MemoryMappedSessionState(Path file) throws IOException {
         boolean justCreated = check(file);
 
         this.buffer = map(file, justCreated);
@@ -58,6 +66,11 @@ public class FileSessionState extends AbstractSessionState {
 
         if (justCreated)
             setDefaults();
+    }
+
+    @Override
+    public void close() {
+        buffer.force(); // no need to do that?
     }
 
     @Override
@@ -117,17 +130,6 @@ public class FileSessionState extends AbstractSessionState {
             int currentValue = nextTargetSeqNum.read();
             nextTargetSeqNum.write(currentValue + 1);
             return currentValue;
-        }
-    }
-
-    @Override
-    public void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException {
-        synchronized (nextTargetSeqNum) {
-            int currentValue = nextTargetSeqNum.read();
-            if (newValue <= currentValue)
-                throw InvalidFixMessageException.RESET_BELOW_CURRENT_SEQ_LARGE;
-
-            nextTargetSeqNum.write(newValue);
         }
     }
 

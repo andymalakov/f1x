@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class Benchmark_SessionStates {
 
     private Path tempFile;
-    private FileSessionState fileSessionState;
+    private MemoryMappedSessionState memoryMappedSessionState;
     private MemorySessionState memorySessionState;
     private TestSessionState testSessionState;
 
@@ -31,14 +31,14 @@ public class Benchmark_SessionStates {
     public void init() throws IOException {
         tempFile = Files.createTempFile(null,null);
         Files.delete(tempFile);
-        fileSessionState = new FileSessionState(tempFile);
+        memoryMappedSessionState = new MemoryMappedSessionState(tempFile);
         memorySessionState = new MemorySessionState();
         testSessionState = new TestSessionState();
     }
 
     @GenerateMicroBenchmark
     public void measureFileSessionState() {
-        measure(fileSessionState);
+        measure(memoryMappedSessionState);
     }
 
     @GenerateMicroBenchmark
@@ -53,7 +53,7 @@ public class Benchmark_SessionStates {
 
     @TearDown
     public void destroy() throws IOException {
-        Cleaner cleaner = ((DirectBuffer) fileSessionState.buffer).cleaner();
+        Cleaner cleaner = ((DirectBuffer) memoryMappedSessionState.buffer).cleaner();
         cleaner.clean(); // If file was memory mapped then windows does not allow to delete it
         Files.deleteIfExists(tempFile);
     }
