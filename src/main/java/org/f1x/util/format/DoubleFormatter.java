@@ -54,7 +54,7 @@ public final class DoubleFormatter {
 
     /** Formats given number into output byte buffer */
     public int format (double number, byte [] output, int offset) {
-        return format(number, precision, maxLength, factor, output, offset);
+        return format(number, precision, true, maxLength, factor, output, offset);
     }
 
     /** Formats given number into output byte buffer */
@@ -67,13 +67,21 @@ public final class DoubleFormatter {
      * @param maxLength maximum length a whole string should take (e.g. 16).
      */
     public int format (double number, int precision, int maxLength, byte [] output, int offset) {
-        long factor = 1;
-        for (int i = 0; i < precision; i++)
-            factor*= 10;
-        return format(number, precision, maxLength, factor, output, offset);
+        return format(number, precision, true, maxLength, output, offset);
     }
 
-    private int format (double number, int precision, int maxLength, long factor, byte [] output, int offset) {
+    /**
+     * @param precision maximum number of digits after decimal point (e.g. 3). Truncated part will be rounded.
+     * @param maxLength maximum length a whole string should take (e.g. 16).
+     */
+    public int format (double number, int precision, boolean roundUp, int maxLength, byte [] output, int offset) {
+        long factor = 10;
+        for (int i = 0; i < precision; i++)
+            factor*= 10;
+        return format(number, precision, roundUp, maxLength, factor, output, offset);
+    }
+
+    private int format (double number, int precision, boolean roundUp, int maxLength, long factor10, byte [] output, int offset) {
         if (precision < 0 || precision > MAX_PRECISION)
             throw new IllegalArgumentException("Precision");
         if (maxLength < 0 || maxLength > MAX_WIDTH)
@@ -87,7 +95,7 @@ public final class DoubleFormatter {
             sign = true;
             factoredNumber = Math.abs(number);
         }
-        factoredNumber = factoredNumber*factor;
+        factoredNumber = factoredNumber*factor10;
         if (Double.isInfinite(factoredNumber) || factoredNumber > MAX)
             return formatLargeNumber (number, output, offset);
 
@@ -95,12 +103,14 @@ public final class DoubleFormatter {
         //long numberAsDecimal = Math.round(factoredNumber);  // this call costs 8% of total time we spend in this method on avg.
         long numberAsDecimal;
         {
-            factoredNumber = factoredNumber * 10;
+            //factoredNumber = factoredNumber * 10;
             numberAsDecimal = (long) factoredNumber;
             int smallestDigit = (int) (numberAsDecimal % 10);
             numberAsDecimal = numberAsDecimal / 10;
-            if (smallestDigit >=5 )
-                numberAsDecimal ++; // round up;
+            if (roundUp) {
+                if (smallestDigit >= 5)
+                    numberAsDecimal++; // round up;
+            }
         }
         if (numberAsDecimal == 0)
             return formatZero(output, offset);

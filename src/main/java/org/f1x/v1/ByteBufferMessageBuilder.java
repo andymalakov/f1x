@@ -118,6 +118,22 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     }
 
     @Override
+    public void add(int tagNo, double value, int precision) {
+        offset = IntFormatter.format(tagNo, buffer, offset);
+        buffer[offset++] = '=';
+        offset = doubleFormatter.format(value, precision, buffer, offset);
+        buffer[offset++] = SOH;
+    }
+
+    @Override
+    public void add(int tagNo, double value, int precision, boolean roundUp) {
+        offset = IntFormatter.format(tagNo, buffer, offset);
+        buffer[offset++] = '=';
+        offset = doubleFormatter.format(value, precision, roundUp, DoubleFormatter.MAX_WIDTH, buffer, offset);
+        buffer[offset++] = SOH;
+    }
+
+    @Override
     public void add(int tagNo, byte value) {
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';

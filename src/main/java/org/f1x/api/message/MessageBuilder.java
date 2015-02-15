@@ -48,7 +48,15 @@ public interface MessageBuilder {
     void add (int tag, CharSequence value, int start, int end);
     void add (int tag, long value);
     void add (int tag, int value);
+
+    /** Appends given double value formatted with default precision and rounded-up*/
     void add (int tag, double value);
+
+    /** Appends given double value formatted with given precision rounded-up*/
+    void add (int tag, double value, int precision);
+
+    /** Appends given double value formatted with given precision rounded up or down */
+    void add (int tag, double value, int precision, boolean roundUp);
     void add (int tag, byte value);
     void add (int tag, boolean value);
     void add (int tag, ByteEnum value);

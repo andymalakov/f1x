@@ -31,7 +31,8 @@ public class Test_DoubleFormatter2 {
     @Test
     public void testAroundBoundariesOfLong() {
         assertFormat(0.99e19, "99000000000000000000", 1);
-        assertFormat(0.99e-19, "0.99", 1);
+        //assertFormat(0.99e-19, "0.99", 1);
+        assertFormat(0.99e-19, "0", 1);
     }
 
     @Test
