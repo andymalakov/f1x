@@ -72,6 +72,7 @@ public final class DoubleFormatter {
 
     /**
      * @param precision maximum number of digits after decimal point (e.g. 3). Truncated part will be rounded.
+     * @param roundUp defines rounding mode (RoundingMode.HALF_UP or RoundingMode.HALF_DOWN)
      * @param maxLength maximum length a whole string should take (e.g. 16).
      */
     public int format (double number, int precision, boolean roundUp, int maxLength, byte [] output, int offset) {
@@ -81,6 +82,11 @@ public final class DoubleFormatter {
         return format(number, precision, roundUp, maxLength, factor, output, offset);
     }
 
+    /**
+     * @param precision maximum number of digits after decimal point (e.g. 3). Truncated part will be rounded.
+     * @param roundUp defines rounding mode (HALF_UP or HALF_DOWN)
+     * @param maxLength maximum length a whole string should take (e.g. 16).
+     */
     private int format (double number, int precision, boolean roundUp, int maxLength, long factor10, byte [] output, int offset) {
         if (precision < 0 || precision > MAX_PRECISION)
             throw new IllegalArgumentException("Precision");
@@ -105,10 +111,13 @@ public final class DoubleFormatter {
         {
             //factoredNumber = factoredNumber * 10;
             numberAsDecimal = (long) factoredNumber;
-            int smallestDigit = (int) (numberAsDecimal % 10);
+            double smallestDigit = factoredNumber % 10;
             numberAsDecimal = numberAsDecimal / 10;
             if (roundUp) {
                 if (smallestDigit >= 5)
+                    numberAsDecimal++; // round up;
+            } else {
+                if (smallestDigit > 5)
                     numberAsDecimal++; // round up;
             }
         }

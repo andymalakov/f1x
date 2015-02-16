@@ -22,6 +22,7 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Test_DoubleFormatter {
@@ -47,7 +48,7 @@ public class Test_DoubleFormatter {
 
     @Test
     public void testAroundBoundariesOfLong() {
-        assertFormat(0.99e19, 1, "99000000000000000000");
+        assertFormat(0.99e19, 1, "9900000000000000000");
         assertFormat(0.99e-19, 1, "0");
     }
 
@@ -325,6 +326,25 @@ public class Test_DoubleFormatter {
         assertFormat(1.0/7, 9, "0.142857143");
     }
 
+    @Test
+    public void testRoundUpAndDown() {
+        assertFormat(1.123450000000001, 5, true,  "1.12345");
+        assertFormat(1.123450000000001, 5, false, "1.12345");
+
+        assertFormat(1.123459999999999, 5, true,  "1.12346");
+        assertFormat(1.123459999999999, 5, false, "1.12346");
+
+        assertFormat(1.123455, 5, false, "1.12345");
+        assertFormat(1.123455, 5, true, "1.12346");
+
+        assertFormat(1.1234559, 5, true,  "1.12346");
+        assertFormat(1.1234559, 5, false, "1.12345");
+
+        assertFormat(1.59, 0, true, "2");
+        assertFormat(1.59, 0, false, "2");
+    }
+
+
     private static double roundTickUp(double value, int precision) {
         double tickSize = 1;
         while (precision-- > 0)
@@ -435,6 +455,8 @@ public class Test_DoubleFormatter {
             }
         }
     }
+
+
 
     public static void main(String[] args) {
         enumerateAll();
