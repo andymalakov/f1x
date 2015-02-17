@@ -22,7 +22,6 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Test_DoubleFormatter {
@@ -294,6 +293,12 @@ public class Test_DoubleFormatter {
     }
 
     @Test
+    public void testBigDecimal () {
+        assertFormat(111111114443343.5625, 3, "111111114443343.563");
+    }
+
+
+    @Test
     public void test3() {
         double ask = 123.00006;
         double bid = 123.00005;
@@ -324,6 +329,25 @@ public class Test_DoubleFormatter {
         assertFormat(value*3, 9, "1");
 
         assertFormat(1.0/7, 9, "0.142857143");
+        assertFormat(1.0 - 1.0/9.0, 9, "0.888888888888");
+    }
+
+    @Test
+    public void test09999999() {
+        double d0999999 = 0;
+        double delta = 0.9;
+
+        // get 0.999(9) = 0.9 + 0.09 + 0.009 + 0.0009 + ...
+        while (true) {
+            d0999999 += delta;
+            delta /= 10;
+
+            if (d0999999 + delta == d0999999 + delta + delta/10)
+                break;
+
+        }
+        assertFormat(d0999999, 9, true,  "1");
+        assertFormat(d0999999, 9, false, "1");
     }
 
     @Test
