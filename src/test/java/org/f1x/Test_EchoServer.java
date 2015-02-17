@@ -38,6 +38,7 @@ public class Test_EchoServer extends  TestCommon {
     private static final String ACCEPTOR_SENDER_ID = "ACCEPTOR";
 
 
+    /** Client and server connect, exchange 15 messages and disconnect */
     @Test(timeout = 120000)
     public void simpleMessageLoop() throws InterruptedException, IOException {
 
@@ -53,11 +54,13 @@ public class Test_EchoServer extends  TestCommon {
 
         if ( ! client.messageCount.await(15, TimeUnit.SECONDS))
             Assert.fail("Communication failed (timed out waiting for echo)");
-        client.disconnect("End of test");
-        client.close();
-        server.close();
+
+        Assert.assertEquals(SessionStatus.ApplicationConnected, client.getSessionStatus());
+
+        normalClose(client, server);
     }
 
+    /** Test verifies automatic re-connection after abrupt disconnect */
     @Test(timeout = 120000)
     public void loginAfterDisconnect() throws InterruptedException, IOException {
 
@@ -88,6 +91,42 @@ public class Test_EchoServer extends  TestCommon {
         server.close();
     }
 
+
+    /** Test verifies automatic re-connection after abrupt disconnect */
+    @Test(timeout = 120000)
+    public void repeatedDisconnect() throws InterruptedException, IOException {
+
+        final EchoServer server = new EchoServer(7890, new SessionIDBean(ACCEPTOR_SENDER_ID, INITIATOR_SENDER_ID), new FixAcceptorSettings());
+        final FixSessionInitiator client = new FixSessionInitiator ("localhost", 7890, FixVersion.FIX44, new SessionIDBean(INITIATOR_SENDER_ID, ACCEPTOR_SENDER_ID), new FixInitiatorSettings());
+
+
+        final Thread acceptorThread = new Thread(server, "Server");
+        acceptorThread.start();
+
+        final Thread initiatorThread = new Thread(client, "Client");
+        initiatorThread.start();
+
+
+        if ( ! spinWaitSessionStatus(client, SessionStatus.ApplicationConnected, 15000))
+            Assert.fail("Timed out waiting for the first FIX session to establish");
+
+        client.disconnect("*** Reconnect Test ***");
+
+        if ( ! spinWaitSessionStatus(client, SessionStatus.Disconnected, 15000))
+            Assert.fail("Timed out waiting for the FIX session to go down");
+
+        if ( ! spinWaitSessionStatus(client, SessionStatus.ApplicationConnected, 35000))
+            Assert.fail("Timed out waiting for the FIX session to re-establish");
+
+        client.disconnect("End of test");
+        client.close();
+        server.close();
+    }
+
+    //TODO: Test reconnect after socket kill
+
+    //TODO: Test Scheduled disconnect
+
     private boolean spinWaitSessionStatus(FixSession session, SessionStatus expectedStatus, long timeout) throws InterruptedException {
         final long timeoutTime = System.currentTimeMillis() + timeout;
         while (true) {
@@ -101,9 +140,24 @@ public class Test_EchoServer extends  TestCommon {
 
     }
 
+    private void normalClose (EchoServerClient client, EchoServer server) throws InterruptedException {
+        Assert.assertEquals(SessionStatus.ApplicationConnected, client.getSessionStatus());
+
+        client.close();
+
+        client.awaitDisconnect();
+
+        Assert.assertEquals(SessionStatus.Disconnected, client.getSessionStatus());
+
+        server.close();
+    }
+
+
+
     private static class EchoServerClient extends FixSessionInitiator {
         private final CountDownLatch messageCount;
         private final MessageBuilder mb;
+        private final Object disconnectedSignal = new Object();
 
         public EchoServerClient(String host, int port, SessionID sessionID, int numberOfMessagesToSend) {
             super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings());
@@ -138,12 +192,27 @@ public class Test_EchoServer extends  TestCommon {
         @Override
         protected void onSessionStatusChanged(SessionStatus oldStatus, SessionStatus newStatus) {
             super.onSessionStatusChanged(oldStatus, newStatus);
-            final int cnt = (int)messageCount.getCount();
-            if (newStatus == SessionStatus.ApplicationConnected)
-                for (int i=0; i < cnt; i++)
-                    sendMessage();
+            switch (newStatus) {
+                case ApplicationConnected:
+                    final int cnt = (int)messageCount.getCount();
+                    for (int i = 0; i < cnt; i++)
+                        sendMessage();
+                    break;
+                case Disconnected:
+                    synchronized (disconnectedSignal) {
+                        disconnectedSignal.notify();
+                    }
+                    break;
+            }
         }
 
+        void awaitDisconnect() throws InterruptedException {
+            while(getSessionStatus() != SessionStatus.Disconnected) {
+                synchronized (disconnectedSignal) {
+                    disconnectedSignal.wait();
+                }
+            }
+        }
 
         @Override
         protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {

@@ -19,6 +19,9 @@ package org.f1x.util.format;
  * Thread safe.
  * For large numbers this method falls back to java.lang.Double.toString(double).
  * Note: formatter always uses '.' dot as decimal separator (regardless of current locale).
+ *
+ * NOTE: This is an alternative to DoubleFormatter that has static formatting method (thread safe).
+ *       TODO: Replace DoubleFormatter by this implementation after additional testing.
  */
 public abstract class DoubleFormatter2 {
 
