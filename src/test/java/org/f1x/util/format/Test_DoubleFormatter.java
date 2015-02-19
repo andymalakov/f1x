@@ -22,6 +22,7 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class Test_DoubleFormatter {
@@ -294,7 +295,7 @@ public class Test_DoubleFormatter {
 
     @Test
     public void testBigDecimal () {
-        assertFormat(111111114443343.5625, 3, "111111114443343.563");
+        assertFormat(111111114443343.5625, 3, "111111114443343.5625"); // for large numbers we use BigDecimal's format that doesn't have precision
     }
 
 
@@ -329,7 +330,7 @@ public class Test_DoubleFormatter {
         assertFormat(value*3, 9, "1");
 
         assertFormat(1.0/7, 9, "0.142857143");
-        assertFormat(1.0 - 1.0/9.0, 9, "0.888888888888");
+        assertFormat(1.0 - 1.0/9.0, 9, "0.888888889");
     }
 
     @Test
@@ -362,7 +363,7 @@ public class Test_DoubleFormatter {
         assertFormat(1.123455, 5, true, "1.12346");
 
         assertFormat(1.1234559, 5, true,  "1.12346");
-        assertFormat(1.1234559, 5, false, "1.12345");
+        assertFormat(1.1234559, 5, false, "1.12346  ");
 
         assertFormat(1.59, 0, true, "2");
         assertFormat(1.59, 0, false, "2");
@@ -385,6 +386,21 @@ public class Test_DoubleFormatter {
 
         double accuracy = tickSize * 0.01;
         return Math.floor((value + accuracy) / tickSize) * tickSize;
+    }
+
+
+
+    @Test
+    public void oldStyleTest() {
+        DoubleFormatter df = new DoubleFormatter(9);
+
+        int len = df.format(1.2345, 9, buffer, 0);
+        assertEquals("1.2345", new String (buffer, 0, len));
+
+        int len2 = df.format(1.2345, buffer, 0);
+        assertEquals("1.2345", new String (buffer, 0, len2));
+
+
     }
 
     //TODO: Runs tpo slow (re-test periodically)
@@ -448,25 +464,7 @@ public class Test_DoubleFormatter {
         if (expected.equals("-0"))
             expected = "0";
 
-        assertFormat(number, precision, roundUp, expected);
-    }
-
-    private static void assertFormat(double number, int precision, String expected) {
-        assertFormat(number, precision, true, expected);
-    }
-
-    private static void assertFormat(double number, int precision, boolean roundUp, String expected) {
-        String actual;
-        try {
-            DoubleFormatter df = DOUBLE_FORMATTERS[precision];
-            byte [] buffer= new byte[MAX_WIDTH];
-            int length = df.format(number, precision, roundUp, DoubleFormatter.MAX_WIDTH, buffer, 0);
-            actual = new String (buffer, 0, length);
-
-            //System.out.println (number + "=>" + actual);
-        } catch (Exception e) {
-            throw new RuntimeException("Error formatting " + number + ": " + e.getMessage(), e);
-        }
+        String actual = format(number, precision, roundUp);
 
         if ( ! expected.equals(actual)) {
             // Slow method:
@@ -480,6 +478,32 @@ public class Test_DoubleFormatter {
         }
     }
 
+    private static void assertFormat(double number, int precision, String expected) {
+        assertFormat(number, precision, true, expected);
+    }
+
+    private static void assertFormat(double number, int precision, boolean roundUp, String expected) {
+        String actual = format(number, precision, roundUp);
+
+        if ( ! expected.equals(actual)) {
+            fail("Format mismatch for number " + number + ":\nexpected:" + expected + "\n  actual:" + actual);
+        }
+    }
+
+    private static String format(double number, int precision, boolean roundUp) {
+        String actual;
+        try {
+            DoubleFormatter df = DOUBLE_FORMATTERS[precision];
+            byte [] buffer= new byte[MAX_WIDTH];
+            int length = df.format(number, precision, roundUp, DoubleFormatter.MAX_WIDTH, buffer, 0);
+            actual = new String (buffer, 0, length);
+
+            //System.out.println (number + "=>" + actual);
+        } catch (Exception e) {
+            throw new RuntimeException("Error formatting " + number + ": " + e.getMessage(), e);
+        }
+        return actual;
+    }
 
 
     public static void main(String[] args) {

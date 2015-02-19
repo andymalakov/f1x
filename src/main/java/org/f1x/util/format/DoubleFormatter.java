@@ -49,7 +49,7 @@ public final class DoubleFormatter {
             throw new IllegalArgumentException("Length");
         this.precision = precision;
         this.maxLength = maxLength;
-        this.factor = Math.round(Math.pow(10, precision));
+        this.factor = Math.round(Math.pow(10, precision+1));
     }
 
     /** Formats given number into output byte buffer */
