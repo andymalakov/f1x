@@ -29,6 +29,7 @@ import org.f1x.io.LoggingOutputChannel;
 import org.f1x.io.OutputChannel;
 import org.f1x.log.MessageLog;
 import org.f1x.log.MessageLogFactory;
+import org.f1x.log.file.LogUtils;
 import org.f1x.store.EmptyMessageStore;
 import org.f1x.store.MessageStore;
 import org.f1x.store.SafeMessageStore;
@@ -40,7 +41,9 @@ import org.f1x.util.timer.GlobalTimer;
 import org.f1x.v1.schedule.SessionSchedule;
 import org.f1x.v1.state.MemorySessionState;
 import org.gflogger.GFLog;
+import org.gflogger.GFLogEntry;
 import org.gflogger.GFLogFactory;
+import org.gflogger.Loggable;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -50,7 +53,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Common networking code for FIX Acceptor and FIX Initiator
  */
-public abstract class FixCommunicator implements FixSession {
+public abstract class FixCommunicator implements FixSession, Loggable {
     private static final int MIN_FIX_MESSAGE_LENGTH = 63; // min message example: 8=FIX.4.?|9=??|35=?|34=?|49=?|56=?|52=YYYYMMDD-HH:MM:SS|10=???|
     static final int CHECKSUM_LENGTH = 7; // length("10=123|") --check sum always expressed using 3 digits
 
@@ -77,13 +80,13 @@ public abstract class FixCommunicator implements FixSession {
     private final byte[] messageBufferForResend;
     private final MessageBuilder messageBuilderForResend;
 
-    private volatile SessionStatus status = SessionStatus.Disconnected;
+    private AtomicReference<SessionStatus> status = new AtomicReference<>(SessionStatus.Disconnected);
 
     /** This flag is set when communicator is going though graceful disconnect initiated by this side.
      * We continue to process inbound requests but do not make new attempts to establish socket connections.
      * Typically inbound LOGOUT in this state causes disconnect.
       */
-    protected volatile boolean closeInProgress = false;
+    protected volatile boolean closeInProgress = false; //TODO: Can get rid of?
 
     // used by receiver thread only
     private final DefaultMessageParser parser = new DefaultMessageParser();
@@ -149,7 +152,7 @@ public abstract class FixCommunicator implements FixSession {
 
     @Override
     public SessionStatus getSessionStatus() {
-        return status;
+        return status.get();
     }
 
     public void setMessageLogFactory(MessageLogFactory messageLogFactory) {
@@ -167,29 +170,41 @@ public abstract class FixCommunicator implements FixSession {
     public void setSessionSchedule(SessionSchedule schedule) {
         this.schedule = schedule;
         if (schedule != null)
-            LOGGER.info().append("Session ").append(getSessionID()).append(" schedule: ").append(schedule).commit();
+            LOGGER.info().append("Session ").append(this).append(" schedule: ").append(schedule).commit();
         else
-            LOGGER.info().append("Session ").append(getSessionID()).append(" will have 'run-forever' schedule").commit();
+            LOGGER.info().append("Session ").append(this).append(" will have 'run-forever' schedule").commit();
     }
 
-    protected void setSessionStatus(SessionStatus status) {
-        final SessionStatus oldStatus = this.status;
-        if (oldStatus == status) {
-            LOGGER.warn().append("Already in the status ").append(status).commit();
+    //@Deprecated // TODO: Switch to use CAS version
+    protected void setSessionStatus(SessionStatus newStatus) {
+        final SessionStatus oldStatus = this.status.get();
+        if (oldStatus == newStatus) {
+            LOGGER.warn().append(this).append(" Already in the status ").append(newStatus).commit();
         } else {
-            this.status = status;
-            onSessionStatusChanged(oldStatus, status);
+            this.status.set(newStatus);
+            onSessionStatusChanged(oldStatus, newStatus);
         }
+    }
+
+    /** Attempts to change state from expected current state to given one (CAS) */
+    protected boolean setSessionStatus(SessionStatus expectedStatus, SessionStatus newStatus) {
+        assert expectedStatus != newStatus;
+
+        boolean result = this.status.compareAndSet(expectedStatus, newStatus);
+        if (result) {
+            onSessionStatusChanged(expectedStatus, newStatus);
+        }
+        return result;
     }
 
     protected void onSessionStatusChanged(final SessionStatus oldStatus, final SessionStatus newStatus) {
         SessionID sessionID = getSessionID();
-        LOGGER.info().append("Session ").append(sessionID).append(" changed status ").append(oldStatus).append(" => ").append(newStatus).commit();
+        LOGGER.info().append("Session ").append(this).append(" changed status ").append(oldStatus).append(" => ").append(newStatus).commit();
         if (eventListener != null) {
             try {
                 eventListener.onStatusChanged(sessionID, oldStatus, newStatus);
             } catch (Throwable e) {
-                LOGGER.error().append("Error notifying about status change ").append(e).commit();
+                LOGGER.error().append(this).append(" Error notifying about status change ").append(e).commit();
             }
         }
     }
@@ -235,7 +250,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param length actual number of bytes that should be consumed from logonBuffer
      */
     protected final boolean processInboundMessages(byte[] logonBuffer, int length) {
-        LOGGER.info().append("Processing FIX Session").commit();
+        LOGGER.info().append(this).append("Processing FIX Session").commit();
         boolean normalExit = false;
         try {
             int offset = 0;
@@ -254,7 +269,7 @@ public abstract class FixCommunicator implements FixSession {
                     offset = processInboundMessages(offset + bytesRead);
                 }
             }
-            LOGGER.error().append("Finishing FIX session").commit();
+            LOGGER.error().append(this).append("Finishing FIX session").commit();
             normalExit = true;
         } catch (InvalidFixMessageException e) {
             errorProcessingMessage("Protocol Error", e, false);
@@ -273,9 +288,9 @@ public abstract class FixCommunicator implements FixSession {
     protected void errorProcessingMessage(String errorText, Exception e, boolean logStackTrace) {
         //if (active) {
             if (logStackTrace)
-                LOGGER.error().append(errorText).append(" : ").append(e).commit();
+                LOGGER.error().append(this).append(errorText).append(" : ").append(e).commit();
             else
-                LOGGER.error().append(errorText).append(" : ").append(e.getMessage()).commit();
+                LOGGER.error().append(this).append(errorText).append(" : ").append(e.getMessage()).commit();
             disconnect(errorText);
         //}
     }
@@ -331,16 +346,7 @@ public abstract class FixCommunicator implements FixSession {
     /** Send LOGOUT but do not drop socket connection (session enters {@link org.f1x.api.session.SessionStatus#InitiatedLogout} state)*/
     @Override
     public void logout(String cause) {
-        if (status == SessionStatus.ApplicationConnected) { // TODO: lock
-            LOGGER.info().append("Initiating LOGOUT: ").append(cause).commit();
-            try {
-                sendLogout(cause);
-            } catch (IOException e) {
-                LOGGER.warn().append("Error logging out from FIX session: ").append(e).commit();
-            }
-        } else {
-            LOGGER.info().append("Skipping LOGOUT (Not connected)").commit();
-        }
+        sendLogout(cause);
     }
 
     /**
@@ -350,7 +356,7 @@ public abstract class FixCommunicator implements FixSession {
      */
     @Override
     public void disconnect(String cause) {
-        LOGGER.info().append("FIX Disconnect due to ").append(cause).commit();
+        LOGGER.info().append(this).append("FIX Disconnect due to ").append(cause).commit();
 
         setSessionStatus(SessionStatus.Disconnected);
         long now = timeSource.currentTimeMillis();
@@ -370,7 +376,7 @@ public abstract class FixCommunicator implements FixSession {
                 messageLog = null;
             }
         } catch (IOException e) {
-            LOGGER.warn().append("Error closing socket: ").append(e).commit();
+            LOGGER.warn().append(this).append("Error closing socket: ").append(e).commit();
         }
     }
 
@@ -378,13 +384,8 @@ public abstract class FixCommunicator implements FixSession {
     @Override
     public void close() {
         this.closeInProgress = true;
-        if (status == SessionStatus.ApplicationConnected) {
-            try {
-                sendLogout("Goodbye");
-            } catch (IOException e) {
-                LOGGER.warn().append("Error logging out from FIX session: ").append(e).commit();
-            }
-        }
+
+        sendLogout("Goodbye");
 
 //TODO: Timeout:
 //        if (status != SessionStatus.Disconnected)
@@ -443,16 +444,24 @@ public abstract class FixCommunicator implements FixSession {
         }
     }
 
-    protected void sendLogout(CharSequence cause) throws IOException {
-        assertSessionStatus(SessionStatus.ApplicationConnected); // TODO: remove
-        synchronized (sessionMessageBuilder) {
-            sessionMessageBuilder.clear();
-            sessionMessageBuilder.setMessageType(MsgType.LOGOUT);
-            if (cause != null)
-                sessionMessageBuilder.add(FixTags.Text, cause);
-            send(sessionMessageBuilder);
+    protected void sendLogout(CharSequence cause) {
+        if (setSessionStatus(SessionStatus.ApplicationConnected, SessionStatus.InitiatedLogout)) {
+            LOGGER.info().append(this).append("Initiating LOGOUT: ").append(cause).commit();
+
+            try {
+                synchronized (sessionMessageBuilder) {
+                    sessionMessageBuilder.clear();
+                    sessionMessageBuilder.setMessageType(MsgType.LOGOUT);
+                    if (cause != null)
+                        sessionMessageBuilder.add(FixTags.Text, cause);
+                    send(sessionMessageBuilder);
+                }
+            } catch (IOException e) {
+                LOGGER.warn().append(this).append("Error logging out from FIX session: ").append(e).commit();
+            }
+        } else {
+            LOGGER.info().append(this).append("Skipping LOGOUT (Not connected)").commit();
         }
-        setSessionStatus(SessionStatus.InitiatedLogout); // TODO: CAS (SessionStatus.ApplicationConnected, SessionStatus.InitiatedLogout)
     }
 
     /**
@@ -515,7 +524,7 @@ public abstract class FixCommunicator implements FixSession {
      */
     protected void sendResendRequest(int beginSeqNo, int endSeqNo) throws IOException {
 
-        LOGGER.warn().append("Requesting RESEND from ").append(beginSeqNo).append(" to ").append(endSeqNo).commit();
+        LOGGER.warn().append(this).append("Requesting RESEND from ").append(beginSeqNo).append(" to ").append(endSeqNo).commit();
 
         assertSessionStatus2(SessionStatus.ApplicationConnected, SessionStatus.InitiatedLogout);
         synchronized (sessionMessageBuilder) {
@@ -576,7 +585,7 @@ public abstract class FixCommunicator implements FixSession {
 
     protected void processInboundMessage(MessageParser parser, CharSequence msgType, int msgSeqNumX) throws IOException, InvalidFixMessageException, ConnectionProblemException {
         long now = timeSource.currentTimeMillis();
-        sessionState.setLastReceivedMessageTimestamp(now); // TODO: maybe extract from message SendingTime(52) field;
+        sessionState.setLastReceivedMessageTimestamp(now); //? maybe extract from message SendingTime(52) field?
 
         SessionStatus currentStatus = getSessionStatus();
         switch (currentStatus) {
@@ -600,7 +609,7 @@ public abstract class FixCommunicator implements FixSession {
                     throw InvalidFixMessageException.EXPECTING_LOGON_MESSAGE;
                 break;
             default:
-                LOGGER.warn().append("Received unexpected message (35=").append(msgType).append(") in status ").append(currentStatus).commit();
+                LOGGER.warn().append(this).append("Received unexpected message (35=").append(msgType).append(") in status ").append(currentStatus).commit();
         }
 
     }
@@ -638,7 +647,7 @@ public abstract class FixCommunicator implements FixSession {
      * @param msgSeqNumX message sequence number (negative for messages that have PossDupFlag=Y).
      */
     private void _processInboundAppMessage(CharSequence msgType, int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append("Processing inbound message with type: ").append(msgType).commit();
+        LOGGER.debug().append(this).append("Processing inbound message with type: ").append(msgType).commit();
 
         final boolean possDup;
         if (msgSeqNumX > 0) { // PossDupFlag=N
@@ -670,10 +679,10 @@ public abstract class FixCommunicator implements FixSession {
      * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
      */
     protected void processInboundLogon(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException, ConnectionProblemException {
-        LOGGER.debug().append("Processing inbound LOGON(A)").commit();
+        LOGGER.debug().append(this).append("Processing inbound LOGON(A)").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received LOGON(A) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append(this).append("Received LOGON(A) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
@@ -721,7 +730,7 @@ public abstract class FixCommunicator implements FixSession {
         } else if (currentStatus == SessionStatus.ApplicationConnected) {
             sendLogon(resetSeqNum);
         } else {
-            LOGGER.warn().append("Unexpected LOGON(A) in status: ").append(currentStatus).commit();
+            LOGGER.warn().append(this).append("Unexpected LOGON(A) in status: ").append(currentStatus).commit();
             return;
         }
 
@@ -732,10 +741,10 @@ public abstract class FixCommunicator implements FixSession {
 
     @SuppressWarnings("unused")
     protected void processInboundLogout(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append("Processing inbound LOGOUT(5)").commit();
+        LOGGER.debug().append(this).append("Processing inbound LOGOUT(5)").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received LOGOUT(5) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append(this).append("Received LOGOUT(5) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
@@ -751,7 +760,7 @@ public abstract class FixCommunicator implements FixSession {
             }
         }
 
-        LOGGER.info().append("LOGOUT(5) received: ").append(temporaryByteArrayReference).commit();
+        LOGGER.info().append(this).append("LOGOUT(5) received: ").append(temporaryByteArrayReference).commit();
 
         SessionStatus currentStatus = getSessionStatus();
         if (currentStatus == SessionStatus.ApplicationConnected) {
@@ -776,16 +785,16 @@ public abstract class FixCommunicator implements FixSession {
                 sessionState.consumeNextTargetSeqNum();
             disconnect("LOGON(A) rejected");
         } else {
-            LOGGER.info().append("Unexpected LOGOUT(5) message in status: ").append(currentStatus).commit();
+            LOGGER.info().append(this).append("Unexpected LOGOUT(5) message in status: ").append(currentStatus).commit();
         }
     }
 
     @SuppressWarnings("unused")
     protected void processInboundHeartbeat(int msgSeqNumX, MessageParser parser) throws InvalidFixMessageException, IOException {
-        LOGGER.debug().append("Processing Inbound HEARTBEAT(0)").commit();
+        LOGGER.debug().append(this).append("Processing Inbound HEARTBEAT(0)").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received HEARTBEAT(0) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append(this).append("Received HEARTBEAT(0) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
@@ -800,7 +809,7 @@ public abstract class FixCommunicator implements FixSession {
         LOGGER.debug().append("Processing inbound TEST(1) request").commit();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received TEST(1) request with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append(this).append("Received TEST(1) request with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
@@ -832,7 +841,7 @@ public abstract class FixCommunicator implements FixSession {
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
 
         if (msgSeqNumX < 0) {
-            LOGGER.warn().append("Received RESEND(2) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+            LOGGER.warn().append(this).append("Received RESEND(2) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
@@ -868,7 +877,7 @@ public abstract class FixCommunicator implements FixSession {
 
     protected void resendMessages(int beginSeqNo, int endSeqNo) throws IOException {
         if(beginSeqNo > endSeqNo){
-            LOGGER.warn().append("Resending messages was skipped: beginSeqNo > endSeqNo").commit();
+            LOGGER.warn().append(this).append("Resending messages was skipped: beginSeqNo > endSeqNo").commit();
             return;
         }
 
@@ -916,7 +925,7 @@ public abstract class FixCommunicator implements FixSession {
             resend(messageBuilderForResend, msgSeqNum);
             return true;
         } catch (InvalidFixMessageException | FixParserException e) {
-            LOGGER.warn().append("Got invalid message #").append(msgSeqNum).append(" from message store : ").append(e).commit();
+            LOGGER.warn().append(this).append("Got invalid message #").append(msgSeqNum).append(" from message store : ").append(e).commit();
             return false;
         }
     }
@@ -962,7 +971,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     private void processInboundSequenceReset(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append("Processing inbound Sequence Reset").commit();
+        LOGGER.debug().append(this).append("Processing inbound Sequence Reset").commit();
 
         boolean isGapFill = false;
         int newSeqNum = -1;
@@ -980,13 +989,13 @@ public abstract class FixCommunicator implements FixSession {
         if (msgSeqNumX < 0) {
             // Normal for gap fill to have PossDupFlag=Y
             if (isGapFill)
-                LOGGER.debug().append("Ignoring GapFill from").append(-msgSeqNumX).append(" to ").append(newSeqNum).commit();
+                LOGGER.debug().append(this).append("Ignoring GapFill from").append(-msgSeqNumX).append(" to ").append(newSeqNum).commit();
             else
-                LOGGER.info().append("Received RESET message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+                LOGGER.info().append(this).append("Received RESET message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
             return;
         }
 
-        LOGGER.info().append("Processing inbound message sequence reset to ").append(newSeqNum).commit();
+        LOGGER.info().append(this).append("Processing inbound message sequence reset to ").append(newSeqNum).commit();
         //noinspection StatementWithEmptyBody
         if (isGapFill) {
             int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
@@ -1009,7 +1018,7 @@ public abstract class FixCommunicator implements FixSession {
     }
 
     protected void processInboundReject(int msgSeqNumX, MessageParser parser) throws InvalidFixMessageException, IOException {
-        LOGGER.debug().append("Processing inbound REJECT(3)").commit();
+        LOGGER.debug().append(this).append("Processing inbound REJECT(3)").commit();
 
         // Skip sequence number checking if we are dealing with GapFill
         if (msgSeqNumX > 0) {
@@ -1035,9 +1044,9 @@ public abstract class FixCommunicator implements FixSession {
 
         //TODO: Notify client API: some brokers use session-level REJECT to reject abnormal order submissions
         if (temporaryByteArrayReference.length() != 0)
-            LOGGER.warn().append("Received REJECT(3):").append(refSeqNum).append(": ").append(temporaryByteArrayReference).commit();
+            LOGGER.warn().append(this).append("Received REJECT(3):").append(refSeqNum).append(": ").append(temporaryByteArrayReference).commit();
         else
-            LOGGER.warn().append("Received REJECT(3):").append(refSeqNum).commit();
+            LOGGER.warn().append(this).append("Received REJECT(3):").append(refSeqNum).commit();
 
     }
 
@@ -1065,7 +1074,7 @@ public abstract class FixCommunicator implements FixSession {
             GlobalTimer.getInstance().schedule(timer, period, period);
             sessionMonitoringTask.set(timer);
         } else {
-            LOGGER.warn().append("Monitoring task already defined").commit();
+            LOGGER.warn().append(this).append("Monitoring task already defined").commit();
         }
     }
 
@@ -1098,4 +1107,8 @@ public abstract class FixCommunicator implements FixSession {
         return actual == expected;
     }
 
+    @Override
+    public void appendTo(GFLogEntry entry) {
+        LogUtils.log(getSessionID(), entry);
+    }
 }
