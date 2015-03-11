@@ -47,7 +47,7 @@ public class DefaultMessageParser implements MessageParser {
     }
 
     @Override
-    public boolean next() {
+    public final boolean next() {
         try {
             final boolean result = _next();
             if (result) {
