@@ -9,6 +9,11 @@ public abstract class AbstractSessionState implements SessionState {
     private volatile long lastSentMessageTimestamp = -1;
 
     @Override
+    public void flush() {
+        // do nothing by default
+    }
+
+    @Override
     public void resetNextSeqNums() {
         setNextSenderSeqNum(1);
         setNextTargetSeqNum(1);

@@ -1,6 +1,5 @@
 package org.f1x.v1.state;
 
-import org.f1x.v1.InvalidFixMessageException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -51,18 +50,6 @@ public class MemorySessionState extends AbstractSessionState {
     @Override
     public int consumeNextTargetSeqNum() {
         return nextTargetSeqNum.getAndIncrement();
-    }
-
-    @Override
-    public void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException {
-        while (true) {
-            int currentValue = nextTargetSeqNum.get();
-            if (newValue <= currentValue)
-                throw InvalidFixMessageException.RESET_BELOW_CURRENT_SEQ_LARGE;
-
-            if (nextTargetSeqNum.compareAndSet(currentValue, newValue))
-                break;
-        }
     }
 
 }

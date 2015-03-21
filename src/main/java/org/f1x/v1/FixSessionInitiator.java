@@ -135,6 +135,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     }
 
     protected void endSession() {
+        getSessionState().flush();
         unscheduleSessionEnd();
         unscheduleSessionMonitoring();
     }

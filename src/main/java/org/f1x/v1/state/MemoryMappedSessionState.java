@@ -1,6 +1,5 @@
 package org.f1x.v1.state;
 
-import org.f1x.v1.InvalidFixMessageException;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
@@ -69,7 +68,7 @@ public class MemoryMappedSessionState extends AbstractSessionState {
     }
 
     @Override
-    public void close() {
+    public void flush() {
         buffer.force(); // no need to do that?
     }
 

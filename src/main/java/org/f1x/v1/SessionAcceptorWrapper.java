@@ -64,11 +64,13 @@ abstract class SessionAcceptorWrapper implements Runnable {
             LOGGER.warn().append("Error occurred during starting acceptor: ").append(e).commit();
             close(socket);
         } finally {
+            acceptor.getSessionState().flush();
             sessionID.clear();
             socket = null;
             onStop();
         }
     }
+
 
     abstract void onStop();
 

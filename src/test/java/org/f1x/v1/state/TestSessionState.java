@@ -51,12 +51,4 @@ public class TestSessionState extends AbstractSessionState {
         return nextTargetSeqNum++;
     }
 
-    @Override
-    public void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException {
-        if (newValue <= nextTargetSeqNum)
-            throw InvalidFixMessageException.RESET_BELOW_CURRENT_SEQ_LARGE;
-
-        nextTargetSeqNum = newValue;
-    }
-
 }

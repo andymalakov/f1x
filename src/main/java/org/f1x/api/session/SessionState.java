@@ -32,8 +32,6 @@ public interface SessionState {
     int consumeNextTargetSeqNum();
 
 
-    void resetNextTargetSeqNum(int newValue) throws InvalidFixMessageException;
-
     void resetNextSeqNums();
 
     /**
@@ -66,5 +64,9 @@ public interface SessionState {
      * @return time of the last message send from our side. Measured in in milliseconds (-1 if unknown)
      */
     long getLastSentMessageTimestamp();
+
+    /** Flushes session state (if necessary). Depending on implementation this may happen periodically or on disconnect.
+     * Some implementations (in-memory and memory-mapped-file) simply ignore this call. */
+    void flush();
 
 }
