@@ -125,39 +125,6 @@ public class Test_EncodingNewOrderSingle {
         asm.send(sessionID, MSG_SEQ_NUM, mb, null, RealTimeSource.INSTANCE.currentTimeMillis(), out);
     }
 
-    public static void main(String[] args) throws InvalidMessage, IOException {
-        Scanner sc = new Scanner(System.in);
-        int mode = sc.nextInt();
-        sc.nextLine();
-        int iterations = sc.nextInt();
-        sc.nextLine();
-        switch (mode) {
-            case 1:
-                Message msg = new Message();
-                for (int i = 0; i < iterations; i++)
-                    encode(msg);
-
-                break;
-            case 2:
-                MessageBuilder mb = new ByteBufferMessageBuilder(256, 2);
-                RawMessageAssembler asm = new RawMessageAssembler(FixVersion.FIX44, 256);
-                SessionID sessionID = new SessionIDBean(SENDER_COMP_ID, SENDER_SUB_ID, TARGET_COMP_ID, TARGET_SUB_ID);
-                NullOutputChannel out = new NullOutputChannel();
-                for (int i = 0; i < iterations; i++)
-                    encode(mb, asm, sessionID, out);
-
-                System.out.println(out.toString());
-                break;
-
-        }
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-    }
-
     private static class NullOutputChannel implements OutputChannel {
 
         private int something;
@@ -176,6 +143,14 @@ public class Test_EncodingNewOrderSingle {
             return "Something:" + something;
         }
 
+    }
+
+    public static void main(String[] args) throws Exception {
+        Test_EncodingNewOrderSingle test = new Test_EncodingNewOrderSingle();
+        while (true) {
+            test.testF1XEncoding();
+            test.testQuickFIXJEncoding();
+        }
     }
 
 }

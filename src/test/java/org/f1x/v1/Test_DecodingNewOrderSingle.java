@@ -88,26 +88,11 @@ public final class Test_DecodingNewOrderSingle {
         return dummy;
     }
 
-    public static void main(String[] args) throws InvalidMessage {
-        Scanner sc = new Scanner(System.in);
-        int mode = sc.nextInt();
-        sc.nextLine();
-        int iterations = sc.nextInt();
-        sc.nextLine();
-        switch (mode) {
-            case 1:
-                Message msg = new Message();
-                for (int i = 0; i < iterations; i++)
-                    decode(SAMPLE, msg);
-
-                break;
-            case 2:
-                byte[] byteMsg = AsciiUtils.getBytes(SAMPLE);
-                DefaultMessageParser parser = new DefaultMessageParser();
-                for (int i = 0; i < iterations; i++)
-                    decode(byteMsg, parser);
-
-                break;
+    public static void main(String[] args) throws Exception {
+        Test_DecodingNewOrderSingle test = new Test_DecodingNewOrderSingle();
+        while (true) {
+            test.testF1X();
+            test.testQuickFIXJ();
         }
     }
 
