@@ -72,7 +72,7 @@ public class EchoServer extends SingleSessionAcceptor {
                     mb.add(tag, parser.getCharSequenceValue());
                 }
             }
-            send(mb);
+            send(mb); // Echo it back!
         }
     }
 
@@ -82,6 +82,8 @@ public class EchoServer extends SingleSessionAcceptor {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        if (args.length == 0)
+            throw new IllegalArgumentException("Expecting one or two arguments: port and [optionally] host");
         int port = Integer.parseInt(args[0]);
         String host = (args.length > 1) ? args[1] : null;
 

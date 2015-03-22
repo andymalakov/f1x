@@ -33,7 +33,7 @@ public class NullServer extends SingleSessionAcceptor {
     }
 
     public NullServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        super(host, bindPort, sessionID, new NullServerSessionAcceptor(FixVersion.FIX43, settings));
+        super(host, bindPort, sessionID, new NullServerSessionAcceptor(FixVersion.FIX44, settings));
     }
 
     private static class NullServerSessionAcceptor extends FixSessionAcceptor {

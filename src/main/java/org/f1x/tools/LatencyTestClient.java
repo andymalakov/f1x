@@ -40,12 +40,15 @@ public class LatencyTestClient extends FixSessionInitiator {
     private final int [] LATENCIES;
     private int signalsReceived = -500; // warmup
 
+    private static final int MICROS_TIMESTAMP_TAG = 8888;
 
     /**
      * @param messageRate messages per second
      */
     public LatencyTestClient(String host, int port, SessionID sessionID, int messageRate, int count) {
         super(host, port, FixVersion.FIX44, sessionID, new FixInitiatorSettings());
+
+        getSettings().setResetSequenceNumbersOnEachLogon(true);
 
         LOGGER.info().append("Message rate: ").append(messageRate).append(" msg/sec").commit();
 
@@ -58,49 +61,51 @@ public class LatencyTestClient extends FixSessionInitiator {
 
     public void sendMessage () throws IOException {
         assert getSessionStatus() == SessionStatus.ApplicationConnected;
-        mb.clear();
-//        mb.setMessageType(MsgType.ORDER_SINGLE);
-//        mb.add(1, getMicrosecondClock()); // timestamp of signal creation
-//        mb.add(FixTags.ClOrdID, ++orderCounter);
-//        mb.add(FixTags.HandlInst, HandlInst.AUTOMATED_EXECUTION_ORDER_PRIVATE);
-//        mb.add(FixTags.OrderQty, 1);
-//        mb.add(FixTags.OrdType, OrdType.LIMIT);
-//        mb.add(FixTags.Price, 1.43);
-//        mb.add(FixTags.Side, Side.BUY);
-//        mb.add(FixTags.Symbol, "EUR/USD");
-//        mb.add(FixTags.SecurityType, SecurityType.FOREIGN_EXCHANGE_CONTRACT);
-//        mb.add(FixTags.TimeInForce, TimeInForce.DAY);
-//        mb.add(76, "MARKET-FEED-SIM");
-//        mb.add(FixTags.ExDestination, "#CANCEL-AFTER-OPEN");
-//        mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
 
-        final int ORDER_BOOK_DEPTH = 4;
-        mb.clear();
-        mb.setMessageType(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH);
-        mb.add(FixTags.Symbol, "EUR/USD");
-        mb.add(FixTags.MDReqID, "dummyRequestId");
-        mb.add(8888, getMicrosecondClock());
+        if (true) {
+            mb.clear();
+            mb.setMessageType(MsgType.ORDER_SINGLE);
+            mb.add(MICROS_TIMESTAMP_TAG, getMicrosecondClock()); // timestamp of signal creation
+            mb.add(FixTags.ClOrdID, ++orderCounter);
+            mb.add(FixTags.HandlInst, HandlInst.AUTOMATED_EXECUTION_ORDER_PRIVATE);
+            mb.add(FixTags.OrderQty, 1);
+            mb.add(FixTags.OrdType, OrdType.LIMIT);
+            mb.add(FixTags.Price, 1.43);
+            mb.add(FixTags.Side, Side.BUY);
+            mb.add(FixTags.Symbol, "EUR/USD");
+            mb.add(FixTags.SecurityType, SecurityType.FOREIGN_EXCHANGE_CONTRACT);
+            mb.add(FixTags.TimeInForce, TimeInForce.DAY);
+            mb.add(76, "MARKET-FEED-SIM");
+            mb.add(FixTags.ExDestination, "#CANCEL-AFTER-OPEN");
+            mb.addUTCTimestamp(FixTags.TransactTime, System.currentTimeMillis());
+        } else {
+            final int ORDER_BOOK_DEPTH = 4;
+            mb.clear();
+            mb.setMessageType(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH);
+            mb.add(FixTags.Symbol, "EUR/USD");
+            mb.add(FixTags.MDReqID, "dummyRequestId");
+            mb.add(MICROS_TIMESTAMP_TAG, getMicrosecondClock());  // timestamp of signal creation
 
-        mb.add(FixTags.NoMDEntries, 2*ORDER_BOOK_DEPTH);
+            mb.add(FixTags.NoMDEntries, 2 * ORDER_BOOK_DEPTH);
 
-        for (int i = 0; i < ORDER_BOOK_DEPTH; i++) {
-            mb.add(FixTags.MDEntryType, MDEntryType.BID);
-            mb.add(FixTags.MDEntryPx, 1.35);
-            mb.add(FixTags.Currency, "EUR");
-            mb.add(FixTags.MDEntrySize, 10000);
-            mb.add(FixTags.QuoteCondition, "A");
-            mb.add(FixTags.MDEntryOriginator, "Originator");
-            mb.add(FixTags.QuoteEntryID, "BID1");
+            for (int i = 0; i < ORDER_BOOK_DEPTH; i++) {
+                mb.add(FixTags.MDEntryType, MDEntryType.BID);
+                mb.add(FixTags.MDEntryPx, 1.35);
+                mb.add(FixTags.Currency, "EUR");
+                mb.add(FixTags.MDEntrySize, 10000);
+                mb.add(FixTags.QuoteCondition, "A");
+                mb.add(FixTags.MDEntryOriginator, "Originator");
+                mb.add(FixTags.QuoteEntryID, "BID1");
 
-            mb.add(FixTags.MDEntryType, MDEntryType.OFFER);
-            mb.add(FixTags.MDEntryPx, 0.74);
-            mb.add(FixTags.Currency, "EUR");
-            mb.add(FixTags.MDEntrySize, 15000);
-            mb.add(FixTags.QuoteCondition, "A");
-            mb.add(FixTags.MDEntryOriginator, "Originator");
-            mb.add(FixTags.QuoteEntryID, "OFFER1");
+                mb.add(FixTags.MDEntryType, MDEntryType.OFFER);
+                mb.add(FixTags.MDEntryPx, 0.74);
+                mb.add(FixTags.Currency, "EUR");
+                mb.add(FixTags.MDEntrySize, 15000);
+                mb.add(FixTags.QuoteCondition, "A");
+                mb.add(FixTags.MDEntryOriginator, "Originator");
+                mb.add(FixTags.QuoteEntryID, "OFFER1");
+            }
         }
-
         send(mb);
     }
 
@@ -142,7 +147,7 @@ public class LatencyTestClient extends FixSessionInitiator {
     protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
         if (Tools.equals(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH, msgType)) {
             while(parser.next()) {
-                if (parser.getTagNum() == 8888) {
+                if (parser.getTagNum() == MICROS_TIMESTAMP_TAG) {
                     recordLatency(parser.getIntValue());  // stored as getMicrosecondClock()
                     break;
                 }
@@ -168,7 +173,7 @@ public class LatencyTestClient extends FixSessionInitiator {
     }
 
     private void printStats() {
-        System.out.println("Experiment complete. Preparing stats...");
+        System.out.println("Experiment complete. Preparing latencies (in microseconds) ...");
 
         Arrays.sort(LATENCIES);
 
@@ -195,7 +200,7 @@ public class LatencyTestClient extends FixSessionInitiator {
             e.printStackTrace();
         }
 
-        String host =args[0];
+        String host = args[0];
         int port = Integer.parseInt(args[1]);
         int rate = args.length > 2 ? Integer.parseInt(args[2]) : 1000;
         int count = args.length > 3 ? Integer.parseInt(args[3]) : 1000000;
