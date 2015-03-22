@@ -81,13 +81,15 @@
         </classpath>
     </javac>
 
+     <copy file="src/main/resources/config/gflogger.xml" tofile="${classesdir}/config/gflogger.xml"/>
+
   </target> <!-- compile -->
 
   <target name="jar" depends="compile" description="Generate jar">
     <jar destfile="target\f1x-${version}.jar">
         <fileset dir="${classesdir}">
             <include name="**/*.class"/>
-						<include name="**/*.xml"/>
+			<include name="**/*.xml"/>
         </fileset>
     </jar>
   </target> <!-- jar -->
