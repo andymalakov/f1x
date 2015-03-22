@@ -42,6 +42,7 @@ public class LatencyTestClient extends FixSessionInitiator {
 
     private static final int MICROS_TIMESTAMP_TAG = 8888;
 
+    private static final MsgType TEST_MSG_TYPE = (true) ? MsgType.ORDER_SINGLE : MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH;
     /**
      * @param messageRate messages per second
      */
@@ -62,7 +63,7 @@ public class LatencyTestClient extends FixSessionInitiator {
     public void sendMessage () throws IOException {
         assert getSessionStatus() == SessionStatus.ApplicationConnected;
 
-        if (true) {
+        if (TEST_MSG_TYPE == MsgType.ORDER_SINGLE) {
             mb.clear();
             mb.setMessageType(MsgType.ORDER_SINGLE);
             mb.add(MICROS_TIMESTAMP_TAG, getMicrosecondClock()); // timestamp of signal creation
@@ -145,7 +146,7 @@ public class LatencyTestClient extends FixSessionInitiator {
 
     @Override
     protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
-        if (Tools.equals(MsgType.MARKET_DATA_SNAPSHOT_FULL_REFRESH, msgType)) {
+        if (Tools.equals(TEST_MSG_TYPE, msgType)) {
             while(parser.next()) {
                 if (parser.getTagNum() == MICROS_TIMESTAMP_TAG) {
                     recordLatency(parser.getIntValue());  // stored as getMicrosecondClock()

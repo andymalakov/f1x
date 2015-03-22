@@ -63,7 +63,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
 
         public SimpleFixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
             super(fixVersion, settings);
-            scheduleStats(15000);
+            //allocs//scheduleStats(15000);
 
             mb = createMessageBuilder();
         }
@@ -86,7 +86,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
                 private final int intervalInSeconds = intervalInMillis / 1000;
                 public void run() {
                     final long currentOrderCount = orderCount; // volatile
-                    System.out.println("Average orders per second: " + (currentOrderCount-lastOrderCount) / intervalInSeconds);
+                    //allocs//System.out.println("Average orders per second: " + (currentOrderCount-lastOrderCount) / intervalInSeconds);
                     lastOrderCount = currentOrderCount;
                 }
             };

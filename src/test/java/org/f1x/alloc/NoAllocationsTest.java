@@ -23,6 +23,9 @@ import org.f1x.io.socket.DefaultBindInterceptor;
 import org.f1x.io.socket.DefaultConnectionInterceptor;
 import org.f1x.tools.SimpleFixAcceptor;
 import org.f1x.tools.SimpleFixInitiator;
+import org.f1x.v1.FixCommunicator;
+import org.gflogger.GFLog;
+import org.gflogger.GFLogFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,6 +42,7 @@ import java.util.concurrent.TimeUnit;
  * NOTE: you must run JVM with  -javaagent:allocation.jar option
  */
 public class NoAllocationsTest {
+    private static final GFLog LOGGER = GFLogFactory.getLog(FixCommunicator.class);
 
     private static final String INITIATOR_SENDER_ID = "INITIATOR";
     private static final String ACCEPTOR_SENDER_ID = "ACCEPTOR";
@@ -69,6 +73,8 @@ public class NoAllocationsTest {
 
     @Test(timeout = 120000)
     public void simpleMessageLoop() throws InterruptedException, IOException {
+        LOGGER.debug().append(this).append("Warming up logging allocs").append(this).commit();
+
         final CountDownLatch connected = new CountDownLatch(1);
         final SessionEventListener eventListener = new SessionEventListener() {
 
