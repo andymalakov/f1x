@@ -647,7 +647,8 @@ public abstract class FixCommunicator implements FixSession, Loggable {
      * @param msgSeqNumX message sequence number (negative for messages that have PossDupFlag=Y).
      */
     private void _processInboundAppMessage(CharSequence msgType, int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException {
-        LOGGER.debug().append(this).append("Processing inbound message with type: ").append(msgType).commit();
+//commenting out until we fix allocation issue detected by NoAllocationTest
+//        LOGGER.debug().append(this).append("Processing inbound message with type: ").append(msgType).commit();
 
         final boolean possDup;
         if (msgSeqNumX > 0) { // PossDupFlag=N
