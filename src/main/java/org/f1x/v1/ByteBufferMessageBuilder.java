@@ -32,6 +32,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
     private static final byte BYTE_Y = (byte) 'Y';
     private static final byte BYTE_N = (byte) 'N';
     private static final byte SOH = 1; // field separator
+    public static final String NULL = "null";
 
     private final TimestampFormatter gmtTimestampFormat = TimestampFormatter.createUTCTimestampFormatter();
     private final TimestampFormatter localTimestampFormat = TimestampFormatter.createLocalTimestampFormatter();
@@ -63,7 +64,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void setMessageType(CharSequence msgType) {
-        checkValue(msgType);
+        checkValue(35,  msgType);
 
         this.msgType = msgType;
     }
@@ -75,7 +76,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void add(int tagNo, final CharSequence value) {
-        checkValue(value);
+        checkValue(tagNo, value);
 
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
@@ -85,7 +86,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void add(int tagNo, CharSequence value, int start, int end) {
-        checkValue(value, start, end);
+        checkValue(tagNo, value, start, end);
 
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
@@ -194,7 +195,7 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public void addRaw(int tagNo, byte[] sourceBuffer, int sourceOffset, int sourceLength) {
-        checkValue(sourceBuffer, sourceOffset, sourceLength);
+        checkValue(tagNo, sourceBuffer, sourceOffset, sourceLength);
 
         offset = IntFormatter.format(tagNo, buffer, offset);
         buffer[offset++] = '=';
@@ -256,17 +257,20 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
     @Override
     public AppendableValue append(CharSequence csq) {
-        checkValue(csq);
-
-        offset = CharSequenceFormatter.format(csq, buffer, offset);
+        if (csq != null)
+            offset = CharSequenceFormatter.format(csq, buffer, offset);
+        else
+            append(NULL); // complies with Appendable interface
         return this;
     }
 
     @Override
     public AppendableValue append(CharSequence csq, int start, int end) {
-        checkValue(csq, start, end);
+        if (csq != null)
+            offset = CharSequenceFormatter.format(csq, start, end, buffer, offset);
+        else
+            append(NULL); // complies with Appendable interface
 
-        offset = CharSequenceFormatter.format(csq, start, end, buffer, offset);
         return this;
     }
 
@@ -307,17 +311,17 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
         buffer[offset++] = SOH;
     }
 
-    private static void checkValue(CharSequence value) {
+    private static void checkValue(int tagNo, CharSequence value) {
         if (value == null)
-            throw new NullPointerException("value is null");
+            throw new NullPointerException("value is null for tag " + tagNo);
 
         if (value.length() == 0)
-            throw new IllegalArgumentException("empty value");
+            throw new IllegalArgumentException("empty value for tag " + tagNo);
     }
 
-    private static void checkValue(CharSequence value, int start, int end) {
+    private static void checkValue(int tagNo, CharSequence value, int start, int end) {
         if (value == null)
-            throw new NullPointerException("value is null");
+            throw new NullPointerException("value is null for tag " + tagNo);
 
         int valueLength = value.length();
         if (start < 0 || valueLength <= start)
@@ -328,12 +332,12 @@ public final class ByteBufferMessageBuilder implements MessageBuilder, Appendabl
 
         int length = end - start;
         if (length < 1)
-            throw new IllegalArgumentException("invalid length: " + length);
+            throw new IllegalArgumentException("bad length for tag " + tagNo);
     }
 
-    private static void checkValue(byte[] buffer, int offset, int length) {
+    private static void checkValue(int tagNo, byte[] buffer, int offset, int length) {
         if (buffer == null)
-            throw new NullPointerException("buffer is null");
+            throw new NullPointerException("value buffer is null for tag " + tagNo);
 
         if (offset < 0 || buffer.length <= offset)
             throw new IllegalArgumentException("invalid offset: " + offset);

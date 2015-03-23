@@ -35,13 +35,13 @@ public interface MessageBuilder {
 
     /**
      * Appends ASCII CharSequence tag value pair. Use {@link #addRaw(int, byte[], int, int)} for non-ASCII content and don't forget to specify MessageEncoding(347).
-     * @param value tag value as ASCII text
+     * @param value tag value as ASCII text (cannot be null)
      */
     void add (int tag, CharSequence value);
 
     /**
      * Appends ASCII CharSequence tag value pair. Use {@link #addRaw(int, byte[], int, int)} for non-ASCII content and don't forget to specify MessageEncoding(347).
-     * @param value tag value as ASCII text
+     * @param value tag value as ASCII text (cannot be null)
      * @param  start The index of the first character in the subsequence
      * @param  end The index of the character following the last character in the subsequence
      */
