@@ -363,7 +363,7 @@ public class Test_DoubleFormatter {
         assertFormat(1.123455, 5, true, "1.12346");
 
         assertFormat(1.1234559, 5, true,  "1.12346");
-        assertFormat(1.1234559, 5, false, "1.12346  ");
+        assertFormat(1.1234559, 5, false, "1.12346");
 
         assertFormat(1.59, 0, true, "2");
         assertFormat(1.59, 0, false, "2");
