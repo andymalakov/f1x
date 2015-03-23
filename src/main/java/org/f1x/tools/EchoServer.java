@@ -15,17 +15,17 @@
 package org.f1x.tools;
 
 import org.f1x.SessionIDBean;
+import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.fields.FixTags;
-import org.f1x.api.FixAcceptorSettings;
+import org.f1x.api.session.SessionID;
 import org.f1x.log.NullLogFactory;
 import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
 import org.f1x.v1.schedule.SessionSchedule;
-import org.gflogger.config.xml.XmlLogFactoryConfigurator;
+import org.gflogger.config.xml.Configurator;
 
 import java.io.IOException;
 
@@ -78,7 +78,7 @@ public class EchoServer extends SingleSessionAcceptor {
 
     public static void main (String [] args) throws InterruptedException, IOException {
         try {
-            XmlLogFactoryConfigurator.configure("/config/gflogger.xml");
+            Configurator.configure ("/config/gflogger.xml");
         } catch (Exception e) {
             e.printStackTrace();
         }

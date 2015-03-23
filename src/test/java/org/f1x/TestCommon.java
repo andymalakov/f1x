@@ -14,12 +14,13 @@
 
 package org.f1x;
 
-import org.gflogger.config.xml.XmlLogFactoryConfigurator;
+
+import org.gflogger.config.xml.Configurator;
 
 public class TestCommon {
     static {
         try {
-            XmlLogFactoryConfigurator.configure("/config/gflogger.xml");
+            Configurator.configure ("/config/gflogger.xml");
         } catch (Exception e) {
             e.printStackTrace();
         }

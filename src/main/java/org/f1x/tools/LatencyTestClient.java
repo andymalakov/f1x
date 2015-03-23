@@ -24,7 +24,7 @@ import org.f1x.api.message.fields.*;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
 import org.f1x.v1.FixSessionInitiator;
-import org.gflogger.config.xml.XmlLogFactoryConfigurator;
+import org.gflogger.config.xml.Configurator;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -196,7 +196,7 @@ public class LatencyTestClient extends FixSessionInitiator {
 
     public static void main (String [] args) throws InterruptedException, IOException {
         try {
-            XmlLogFactoryConfigurator.configure("/config/gflogger.xml");
+            Configurator.configure ("/config/gflogger.xml");
         } catch (Exception e) {
             e.printStackTrace();
         }
