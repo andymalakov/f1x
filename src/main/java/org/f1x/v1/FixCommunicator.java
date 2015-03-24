@@ -86,7 +86,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
      * We continue to process inbound requests but do not make new attempts to establish socket connections.
      * Typically inbound LOGOUT in this state causes disconnect.
       */
-    protected volatile boolean closeInProgress = false; //TODO: Can get rid of?
+    protected volatile boolean closeInProgress = false;
 
     // used by receiver thread only
     private final DefaultMessageParser parser = new DefaultMessageParser();
@@ -384,12 +384,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
     @Override
     public void close() {
         this.closeInProgress = true;
-
         sendLogout("Goodbye");
-
-//TODO: Timeout:
-//        if (status != SessionStatus.Disconnected)
-//            disconnect("Closing");
     }
 
     /**
@@ -1042,7 +1037,8 @@ public abstract class FixCommunicator implements FixSession, Loggable {
             }
         }
 
-        //TODO: Notify client API: some brokers use session-level REJECT to reject abnormal order submissions
+        // NOTE: some brokers use session-level REJECT to reject abnormal app-level messages
+        //This default implementation simply log REJECT messages:
         if (temporaryByteArrayReference.length() != 0)
             LOGGER.warn().append(this).append("Received REJECT(3):").append(refSeqNum).append(": ").append(temporaryByteArrayReference).commit();
         else
@@ -1069,7 +1065,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
     }
 
     protected void scheduleSessionMonitoring(long period){
-        if (sessionMonitoringTask != null) {
+        if (sessionMonitoringTask.get() != null) {
             SessionMonitoringTask timer = new SessionMonitoringTask(this);
             GlobalTimer.getInstance().schedule(timer, period, period);
             sessionMonitoringTask.set(timer);
