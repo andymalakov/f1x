@@ -21,10 +21,9 @@ import org.f1x.api.message.MessageParser;
 import org.f1x.api.session.SessionID;
 import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
-import org.gflogger.config.xml.Configurator;
+import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
 
-import java.io.File;
 import java.io.IOException;
 
 /** Receives inbound FIX messages and does nothing else */
@@ -52,7 +51,7 @@ public class NullServer extends SingleSessionAcceptor {
 
     public static void main (String [] args) throws InterruptedException, IOException {
         try {
-            Configurator.configure ("/config/gflogger.xml");
+            XmlLogFactoryConfigurator.configure();
         } catch (Exception e) {
             e.printStackTrace();
         }

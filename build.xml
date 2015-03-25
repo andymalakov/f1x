@@ -81,7 +81,7 @@
         </classpath>
     </javac>
 
-     <copy file="src/main/resources/config/gflogger.xml" tofile="${classesdir}/config/gflogger.xml"/>
+    <copy file="src/main/resources/gflogger.xml" tofile="${classesdir}/gflogger.xml"/>
 
   </target> <!-- compile -->
 

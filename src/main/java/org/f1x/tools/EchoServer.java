@@ -25,7 +25,7 @@ import org.f1x.log.NullLogFactory;
 import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
 import org.f1x.v1.schedule.SessionSchedule;
-import org.gflogger.config.xml.Configurator;
+import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
 import java.io.IOException;
 
@@ -78,7 +78,7 @@ public class EchoServer extends SingleSessionAcceptor {
 
     public static void main (String [] args) throws InterruptedException, IOException {
         try {
-            Configurator.configure ("/config/gflogger.xml");
+            XmlLogFactoryConfigurator.configure();
         } catch (Exception e) {
             e.printStackTrace();
         }
