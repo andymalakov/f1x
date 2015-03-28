@@ -1,6 +1,5 @@
 package org.f1x.v1.state;
 
-import org.f1x.api.session.SessionID;
 import org.f1x.util.TimeSource;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
@@ -19,33 +18,32 @@ public class SimpleFileSessionStore extends MemorySessionState {
     private final RandomAccessFile raf;
     private final Flusher flusher;
 
-    public SimpleFileSessionStore (File file) {
-        this(file, null, 0);
+    public SimpleFileSessionStore (File file) throws LostSessionStateException {
+        this(file, null, 0, false);
     }
 
     /**
      * @param file file to hold session state
-     * @flushPeriod How often session should flush the changes (in milliseconds). Zero or negative value disables periodic flush (in which case state is flushed on disconnect).
+     * @param flushPeriod How often session should flush the changes (in milliseconds). Zero or negative value disables periodic flush (in which case state is flushed on disconnect).
      */
-    public SimpleFileSessionStore (File file, TimeSource timeSource, int flushPeriod) {
+    public SimpleFileSessionStore (File file, TimeSource timeSource, int flushPeriod, boolean truncate) throws LostSessionStateException {
         final boolean existingFile = file.exists();
         try {
             raf = new RandomAccessFile(file, "rw");
-            if (existingFile) {
+            if (existingFile && ! truncate) {
                 long lastConnTimestamp = raf.readLong();
                 int senderCompId = raf.readInt();
                 int targetCompId = raf.readInt();
                 if (senderCompId < 1 || targetCompId < 1)
                     throw new RuntimeException("Invalid session state loaded");
 
-                boolean isComplete = raf.readBoolean();
-                if ( ! isComplete)
-                    throw new IllegalStateException("Session State was lost (sequence reset is required)");
+                boolean isCommitted = raf.readBoolean();
+                if ( ! isCommitted)
+                    throw new LostSessionStateException();
 
                 setLastConnectionTimestamp(lastConnTimestamp);
                 setNextSenderSeqNum(senderCompId);
                 setNextTargetSeqNum(targetCompId);
-
             }
             store(false); // Mark as incomplete
         } catch (IOException e) {
@@ -104,8 +102,16 @@ public class SimpleFileSessionStore extends MemorySessionState {
                     LOGGER.error().append("Error writing FIX log").append(e).commit();
                 }
             }
-
         }
+    }
 
+    /**
+     * Error that signals that session state stored on disk is potentially not up-to-date (system crashed?).
+     * Clients should report this problem to user and reset session state.
+     */
+    public static class LostSessionStateException extends Exception {
+        LostSessionStateException () {
+            super ("Session State was lost (sequence reset is required)");
+        }
     }
 }
