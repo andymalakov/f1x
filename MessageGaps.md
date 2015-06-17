@@ -22,7 +22,7 @@ This was intentional design decision:
 
 Callback for application-level messages has `possDup` parameter:
 
-```
+``` java
 protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) {
    if (posDup) { ... }
 }
