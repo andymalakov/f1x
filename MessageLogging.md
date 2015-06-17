@@ -10,14 +10,14 @@ F1X provides several out-of-the-box implementations for FIX message loggers:
 ### Examples ###
 Loggers are configured using their `MessageLogFactory`.
 
-```
+``` java
 File logDir = ...
 fix.setLogFactory(new DailyFileMessageLogFactory(logDir));
 ```
 
 Logging parameter can be customized via log factory:
 
-```
+``` java
 File logDir = ...
 DailyFileMessageLogFactory logFactory = new DailyFileMessageLogFactory(logDir);
 logFactory.setFlushPeriod(15000);
