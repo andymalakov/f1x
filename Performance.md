@@ -22,12 +22,15 @@ Test used the following New Order Single (D) message as a sample:
 Each test has warm up phase (20000 operations) and main phase (1000000 operations). Warm up time is not counted.
 
 Tests were run 10 times. The average result is shown in the table.
+
 | **Library**  | **Operation** | **Messages/sec** | **Average time per message (nanos)** | **F1X Advantage** |
 |:-------------|:--------------|:-----------------|:-------------------------------------|:------------------|
 | QuickFIX/J   | encoding      | 119904           | 5152                                 | -                 |
 |              | decoding      | 341763           | 1446                                 | -                 |
 | F1X          | encoding      | 1156069          | 498                                  | 10.34x            |
 |              | decoding      | 1342282          | 210                                  | 6.85x             |
+
+
 
 
 ## Wire-to-wire latency of "Echo Server" ##
