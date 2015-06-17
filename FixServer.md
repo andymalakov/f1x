@@ -13,7 +13,8 @@ Supports one acceptor per connection(server socket). First we create session id.
 ```java
 
 SessionIDBean sessionID = new SessionIDBean("Receiver", "Sender");
-ServerSocketSessionAcceptor acceptor = new SingleSessionAcceptor("localhost", 9999, FixVersion.FIX44, sessionID, new FixAcceptorSettings());
+ServerSocketSessionAcceptor acceptor = 
+        new SingleSessionAcceptor("localhost", 9999, FixVersion.FIX44, sessionID, new FixAcceptorSettings());
 ```
 
 ### Multi Server Acceptor ###
@@ -31,10 +32,10 @@ You can add session id on fly as well. Further we create simple factory for crea
 ```java
 
 ObjectFactory<FixSessionAcceptor> acceptorFactory = new ObjectFactory<FixSessionAcceptor>(){
-@Override
-public FixSessionAcceptor create() {
-return new FixSessionAcceptor(FixVersion.FIX44, new FixAcceptorSettings());
-}
+  @Override
+  public FixSessionAcceptor create() {
+    return new FixSessionAcceptor(FixVersion.FIX44, new FixAcceptorSettings());
+  }
 };
 ```
 
