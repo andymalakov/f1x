@@ -6,7 +6,7 @@ By default F1X has no message store. All inbound ResendRequest will get a GapFil
 
 Out of the box, F1X provides in-memory implementation of message store backed by fixed circular buffer.
 
-```
+``` java
 MessageStore messageStore = new InMemoryMessageStore(1 << 22); // 4Mb
 initiator.setMessageStore(messageStore);
 ```
