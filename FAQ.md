@@ -7,7 +7,7 @@ We do not provide FIX Dictionaries or any way to automatically validate FIX mess
 
 One way of doing this is to use `MessageBuilder.addRaw()` method:
 
-```
+``` java
 mb.add(FixTags.MessageEncoding, MessageEncoding.SHIFT_JIS);
 mb.add(FixTags.Text, "Hello");
 String hello = new String ("\u3053\u3093\u306b\u3061\u306f");
@@ -20,7 +20,7 @@ mb.addRaw(FixTags.EncodedText, helloEncoded, 0, helloEncoded.length);
 ## How to define a repeating group? ##
 
 You need to add repeating group tags in the order they will appear in the FIX message, starting with tag that specifies number of entries:
-```
+``` java
 mb.add(FixTags.NoMDEntries, 2);
 
 mb.add(FixTags.MDEntryType, MDEntryType.BID);
