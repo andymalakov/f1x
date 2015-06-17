@@ -29,11 +29,11 @@ Let's send a FIX message as soon as both sides exchanged LOGON requests and FIX 
 ```java
 
 session.setEventListener(new SessionEventListener() {
-@Override
-public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
-if (newState == SessionState.ApplicationConnected)
-sendSampleMessage(session);
-}
+  @Override
+  public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
+    if (newState == SessionState.ApplicationConnected)
+      sendSampleMessage(session);
+  }
 ```
 
 F1X uses Builder pattern to construct F1X messages. Our approach is very similar to `java.lang.StringBuilder` or `java.lang.Appendable`.
