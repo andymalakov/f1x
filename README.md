@@ -1,4 +1,4 @@
 F1X
 ===
 
-Java implementation of FIX Protocol
+Super-fast Java implementation of FIX Protocol. More information is on [wiki](https://github.com/andymalakov/f1x/blob/wiki/QuickStart.md).
