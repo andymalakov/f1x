@@ -4,7 +4,7 @@ You can call `FixSession.close()` to initiate FIX Logout and close the socket.
 ## Standard implementation ##
 F1X provides session schedule similar QuickFIX.
 
-```
+``` java
 SessionSchedule schedule = 
    new SimpleSessionSchedule(
       Calendar.SUNDAY, Calendar.FRIDAY, 
