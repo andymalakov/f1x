@@ -22,83 +22,33 @@ import org.gflogger.GFLogFactory;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.Objects;
+import java.util.concurrent.*;
 
 public class MultiSessionAcceptor extends ServerSocketSessionAcceptor {
 
     private static final GFLog LOGGER = GFLogFactory.getLog(MultiSessionAcceptor.class);
 
     private final ObjectPool<SessionAcceptorWrapper> acceptorPool;
-    private final SessionAcceptorWrapper[] allAcceptors; //TODO: necessary to properly close acceptors
-    private final ThreadPoolExecutor threadPool;
-    private final int logoutTimeout;
+    private final ExecutorService executor;
     private final SessionManager manager;
 
     private boolean closed;
 
+    public MultiSessionAcceptor(String bindAddress, int bindPort, int logonBufferSize, int logonTimeout, int maxActiveSessions, SessionManager manager) {
+        this(bindAddress, bindPort, logonBufferSize, logonTimeout, maxActiveSessions, manager, new ThreadPoolExecutor(maxActiveSessions, maxActiveSessions, 0, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<Runnable>(maxActiveSessions * 2)));
+    }
+
     /**
-     * @param logonTimeout  in milliseconds
-     * @param logoutTimeout in milliseconds
+     * @param logonTimeout in milliseconds
      */
-    public MultiSessionAcceptor(String bindAddress, int bindPort, final int logonTimeout, int logoutTimeout, final ObjectFactory<? extends FixSessionAcceptor> acceptorFactory, final SessionManager manager) {
+    public MultiSessionAcceptor(String bindAddress, int bindPort, int logonBufferSize, int logonTimeout, int maxActiveSessions, SessionManager manager, ExecutorService executor) {
         super(bindAddress, bindPort);
-        if (logonTimeout < 1)
-            throw new IllegalArgumentException("logonTimeout < 1");
-        if (logoutTimeout < 1)
-            throw new IllegalArgumentException("logoutTimeout < 1");
-        if (manager == null)
-            throw new NullPointerException("manager == null");
-        if (acceptorFactory == null)
-            throw new NullPointerException("acceptorFactory == null");
+        check(logonTimeout, manager, executor);
 
-        int maxManagedSessions = manager.getMaxManagedSessions();
-        if (maxManagedSessions < 1)
-            throw new IllegalArgumentException("maxManagedSessions < 1");
-
-        this.acceptorPool = new ObjectPool<>(maxManagedSessions, new ObjectFactory<SessionAcceptorWrapper>() {
-            @Override
-            public SessionAcceptorWrapper create() {
-                return new SessionAcceptorWrapper(acceptorFactory.create(), manager, logonTimeout) {
-
-                    @Override
-                    void onStop() {
-                        acceptorPool.release(this);
-                    }
-
-                };
-            }
-        });
-        this.allAcceptors = acceptorPool.toArray(new SessionAcceptorWrapper[maxManagedSessions]);
-        this.logoutTimeout = logoutTimeout;
-        this.threadPool = new ThreadPoolExecutor(maxManagedSessions, maxManagedSessions, 0, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<Runnable>(maxManagedSessions * 2));
+        this.acceptorPool = createAcceptorPool(logonBufferSize, logonTimeout, maxActiveSessions, manager);
+        this.executor = executor;
         this.manager = manager;
-    }
-
-    @Override
-    protected boolean processInboundConnection(Socket socket) throws IOException {
-        SessionAcceptorWrapper acceptor = acceptorPool.borrow();
-        if (acceptor == null) {
-            LOGGER.warn().append("Session Manager run out of free acceptors.").commit();
-            return false;
-        } else {
-            return accept(socket, acceptor);
-        }
-    }
-
-    private boolean accept(Socket socket, SessionAcceptorWrapper acceptor) {
-        acceptor.setSocket(socket);
-        try {
-            threadPool.execute(acceptor);
-            return false;
-        } catch (RejectedExecutionException e) {
-            LOGGER.warn().append("Someone called accept after calling close.").append(e).commit();
-            acceptor.setSocket(null);
-            acceptorPool.release(acceptor);
-            return true;
-        }
     }
 
     public SessionManager getSessionManager() {
@@ -110,24 +60,59 @@ public class MultiSessionAcceptor extends ServerSocketSessionAcceptor {
 
         synchronized (this) {
             if (!closed) {
-                threadPool.shutdown();
-
-                for (SessionAcceptorWrapper acceptor : allAcceptors)
-                    acceptor.logout("Server shutdown");
-
-                try {
-                    if (threadPool.awaitTermination(logoutTimeout, TimeUnit.MILLISECONDS)) {
-                        LOGGER.warn().append("Logout timeout is over. Force closing acceptors").commit();
-                        for (SessionAcceptorWrapper acceptor : allAcceptors)
-                            acceptor.close();
-                    }
-                } catch (InterruptedException unexpected) {
-                    LOGGER.warn().append("Unexpected: ").append(unexpected).commit();
-                }
-
+                executor.shutdown();
+                manager.close();
                 closed = true;
             }
         }
+    }
+
+    @Override
+    protected boolean processInboundConnection(Socket socket) throws IOException {
+        SessionAcceptorWrapper acceptor = acceptorPool.borrow();
+        if (acceptor == null) {
+            LOGGER.warn().append("Multi Session Acceptor ran out of free acceptors.").commit();
+            return false;
+        } else {
+            return accept(socket, acceptor);
+        }
+    }
+
+    protected boolean accept(Socket socket, SessionAcceptorWrapper acceptor) {
+        acceptor.setSocket(socket);
+        try {
+            executor.execute(acceptor);
+            return false;
+        } catch (RejectedExecutionException e) {
+            LOGGER.warn().append("Someone called accept after calling close.").append(e).commit();
+            acceptor.setSocket(null);
+            acceptorPool.release(acceptor);
+            return true;
+        }
+    }
+
+    protected ObjectPool<SessionAcceptorWrapper> createAcceptorPool(final int logonBufferSize, final int logonTimeout, int maxActiveSessions, final SessionManager manager) {
+        return new ObjectPool<>(maxActiveSessions, new ObjectFactory<SessionAcceptorWrapper>() {
+            @Override
+            public SessionAcceptorWrapper create() {
+                return new SessionAcceptorWrapper(logonBufferSize, logonTimeout, manager) {
+
+                    @Override
+                    protected void onStop() {
+                        acceptorPool.release(this);
+                    }
+
+                };
+            }
+        });
+    }
+
+    protected void check(int logonTimeout, SessionManager manager, ExecutorService executor) {
+        if (logonTimeout < 1)
+            throw new IllegalArgumentException("logonTimeout < 1");
+
+        Objects.requireNonNull(manager, "manager == null");
+        Objects.requireNonNull(executor, "executor == null");
     }
 
 }

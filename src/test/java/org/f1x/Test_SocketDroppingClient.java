@@ -17,10 +17,11 @@ package org.f1x;
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.FixInitiatorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.message.MessageParser;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
-import org.f1x.v1.*;
+import org.f1x.v1.FixSessionAcceptor;
+import org.f1x.v1.FixSessionInitiator;
+import org.f1x.v1.SingleSessionAcceptor;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 public class Test_SocketDroppingClient extends  TestCommon {
     private static final String INITIATOR_SENDER_ID = "INITIATOR";
     private static final String ACCEPTOR_SENDER_ID = "ACCEPTOR";
-    private static final Timer TIMER = new Timer("Socket Dropping Timer", true);
+    private static final Timer TIMER = new Timer("Socket Dropping Timer", false);
     private static final Random RND = new Random(System.currentTimeMillis());
 
 
@@ -109,18 +110,18 @@ public class Test_SocketDroppingClient extends  TestCommon {
     private static class SocketDroppingServer extends SingleSessionAcceptor {
 
         public SocketDroppingServer(String host, int bindPort, SessionID sessionID) {
-            super(host, bindPort, sessionID, SocketDroppingServerSessionAcceptor.create());
+            super(host, bindPort, SocketDroppingServerSessionAcceptor.create(sessionID));
         }
     }
 
 
     private static class SocketDroppingServerSessionAcceptor extends FixSessionAcceptor {
-        private static SocketDroppingServerSessionAcceptor create() {
-            return new SocketDroppingServerSessionAcceptor(FixVersion.FIX44, new FixAcceptorSettings());
+        private static SocketDroppingServerSessionAcceptor create(SessionID sessionID) {
+            return new SocketDroppingServerSessionAcceptor(FixVersion.FIX44, sessionID, new FixAcceptorSettings());
         }
 
-        private SocketDroppingServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
-            super(fixVersion, settings);
+        private SocketDroppingServerSessionAcceptor(FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
+            super(fixVersion, sessionID, settings);
         }
 
     }

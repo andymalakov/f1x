@@ -41,11 +41,11 @@ public class EchoServer extends SingleSessionAcceptor {
     }
 
     public EchoServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings, SessionSchedule schedule) {
-        super(host, bindPort, sessionID, createAcceptor(settings, schedule));
+        super(host, bindPort, createAcceptor(sessionID, settings, schedule));
     }
 
-    private static EchoServerSessionAcceptor createAcceptor(FixAcceptorSettings settings, SessionSchedule schedule) {
-        EchoServerSessionAcceptor acceptor = new EchoServerSessionAcceptor(FixVersion.FIX44, settings);
+    private static EchoServerSessionAcceptor createAcceptor(SessionID sessionID, FixAcceptorSettings settings, SessionSchedule schedule) {
+        EchoServerSessionAcceptor acceptor = new EchoServerSessionAcceptor(FixVersion.FIX44, sessionID, settings);
         acceptor.setSessionSchedule(schedule);
         return acceptor;
     }
@@ -54,8 +54,8 @@ public class EchoServer extends SingleSessionAcceptor {
     private static class EchoServerSessionAcceptor extends FixSessionAcceptor {
         private final MessageBuilder mb;
 
-        public EchoServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
-            super(fixVersion, settings);
+        public EchoServerSessionAcceptor(FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
+            super(fixVersion, sessionID, settings);
             mb = createMessageBuilder();
 
             setMessageLogFactory(new NullLogFactory());

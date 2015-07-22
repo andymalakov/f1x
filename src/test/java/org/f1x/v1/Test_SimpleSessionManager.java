@@ -16,7 +16,7 @@ public class Test_SimpleSessionManager {
 
     @Before
     public void init() {
-        manager = new SimpleSessionManager(10);
+        manager = new SimpleSessionManager();
     }
 
     @Test
@@ -35,31 +35,31 @@ public class Test_SimpleSessionManager {
         assertFailedLock(sessionID, "Session id is already used");
 
         simulateUnlock(sessionID);
+        manager.removeSession(sessionID);
         assertSuccessfulLock(sessionID);
     }
 
-    private void simulateUnlock(SessionID sessionID){
-        manager.unlock(sessionID);
+    private void simulateUnlock(SessionID sessionID) {
+        manager.unlockSession(sessionID);
     }
 
     private void assertSuccessfulLock(SessionID sessionID) {
-        SessionState expectedState = createTestSessionState();
-        manager.add(sessionID, expectedState);
+        FixSessionAcceptor expectedAcceptor = createTestSessionAcceptor(sessionID);
+        manager.addSession(expectedAcceptor);
 
-        FixSessionAcceptor expectedAcceptor = createTestSessionAcceptor();
-        SessionState actualState = null;
+        FixSessionAcceptor actualAcceptor = null;
         try {
-            actualState = manager.lock(sessionID, expectedAcceptor);
+            actualAcceptor = manager.lockSession(sessionID);
         } catch (FailedLockException e) {
             Assert.fail("Unexpected: " + e);
         }
-        Assert.assertEquals(expectedState, actualState);
-        Assert.assertEquals(expectedAcceptor, manager.getSessionAcceptor(sessionID));
+        Assert.assertEquals(expectedAcceptor, actualAcceptor);
+        Assert.assertEquals(expectedAcceptor, manager.getSession(sessionID));
     }
 
     private void assertFailedLock(SessionID sessionID, String expected) {
         try {
-            manager.lock(sessionID, createTestSessionAcceptor());
+            manager.lockSession(sessionID);
         } catch (FailedLockException e) {
             Assert.assertEquals(expected, e.getMessage());
         }
@@ -69,8 +69,10 @@ public class Test_SimpleSessionManager {
         return Mockito.mock(SessionState.class);
     }
 
-    private static FixSessionAcceptor createTestSessionAcceptor() {
-        return Mockito.mock(FixSessionAcceptor.class);
+    private static FixSessionAcceptor createTestSessionAcceptor(SessionID sessionID) {
+        FixSessionAcceptor acceptor = Mockito.mock(FixSessionAcceptor.class);
+        Mockito.when(acceptor.getSessionID()).thenReturn(sessionID);
+        return acceptor;
     }
 
 }

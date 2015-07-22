@@ -3,7 +3,6 @@ package org.f1x.v1;
 import org.f1x.api.FixParserException;
 import org.f1x.api.session.FailedLockException;
 import org.f1x.api.session.SessionManager;
-import org.f1x.api.session.SessionState;
 import org.f1x.io.parsers.SimpleMessageScanner;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
@@ -13,35 +12,33 @@ import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
-abstract class SessionAcceptorWrapper implements Runnable {
+public abstract class SessionAcceptorWrapper implements Runnable {
 
-    private static final GFLog LOGGER = GFLogFactory.getLog(SessionAcceptorWrapper.class);
+    protected static final GFLog LOGGER = GFLogFactory.getLog(SessionAcceptorWrapper.class);
 
-    private final SessionManager manager;
-    private final FixSessionAcceptor acceptor;
-    final SessionIDByteReferences sessionID;
-    private final byte[] logonBuffer;
-    private final int logonTimeout;
+    protected final SessionManager manager;
+    protected final SessionIDByteReferences sessionID;
+    protected final byte[] logonBuffer;
+    protected final int logonTimeout;
 
-    Socket socket;
+    protected Socket socket;
 
-    SessionAcceptorWrapper(FixSessionAcceptor acceptor, SessionManager manager, int logonTimeout) {
-        int maxMessageSize = acceptor.getSettings().getMaxInboundMessageSize(); // TODO: move validation to acceptor settings
-        if (maxMessageSize < SimpleMessageScanner.MIN_MESSAGE_LENGTH)
-            throw new IllegalArgumentException("max message size: " + maxMessageSize + " is less than min required length: " + SimpleMessageScanner.MIN_MESSAGE_LENGTH);
-
+    protected SessionAcceptorWrapper(int logonBufferSize, int logonTimeout, SessionManager manager) {
         this.manager = manager;
-        this.acceptor = acceptor;
-        this.logonBuffer = new byte[maxMessageSize];  // TODO: combine buffers
+        this.logonBuffer = new byte[logonBufferSize];
         this.sessionID = new SessionIDByteReferences();
         this.logonTimeout = logonTimeout;
+    }
+
+    public void setSocket(Socket socket) {
+        this.socket = socket;
     }
 
     @Override
     public void run() {
         try {
             int logonLength = waitLogon();
-            startAcceptor(logonLength);
+            runAcceptor(logonLength);
         } catch (SocketTimeoutException e) {
             LOGGER.warn().append("Error occurred during starting acceptor. Logon timeout expired").commit();
             close(socket);
@@ -64,30 +61,25 @@ abstract class SessionAcceptorWrapper implements Runnable {
             LOGGER.warn().append("Error occurred during starting acceptor: ").append(e).commit();
             close(socket);
         } finally {
-            SessionState sessionState = acceptor.getSessionState();
-            if (sessionState != null)
-                sessionState.flush();
             sessionID.clear();
             socket = null;
             onStop();
         }
     }
 
+    protected abstract void onStop();
 
-    abstract void onStop();
-
-    private void startAcceptor(int logonLength) throws IOException, FailedLockException {
-        SessionState state = manager.lock(sessionID, acceptor);
+    protected void runAcceptor(int logonLength) throws IOException, FailedLockException {
+        FixSessionAcceptor acceptor = manager.lockSession(sessionID);
         try {
-            acceptor.setSessionState(state);
-            acceptor.connect(socket, sessionID);
+            acceptor.connect(socket);
             acceptor.run(logonBuffer, logonLength);
         } finally {
-            manager.unlock(sessionID);
+            manager.unlockSession(sessionID);
         }
     }
 
-    private int waitLogon() throws IOException, ConnectionProblemException, FixParserException {
+    protected int waitLogon() throws IOException, ConnectionProblemException, FixParserException {
         int oldSoTimeout = socket.getSoTimeout();
         socket.setSoTimeout(logonTimeout);
 
@@ -96,7 +88,7 @@ abstract class SessionAcceptorWrapper implements Runnable {
         return logonLength;
     }
 
-    private int extractSessionID() throws IOException, ConnectionProblemException {
+    protected int extractSessionID() throws IOException, ConnectionProblemException {
         InputStream in = socket.getInputStream();
 
         int logonLength = 0;
@@ -109,7 +101,7 @@ abstract class SessionAcceptorWrapper implements Runnable {
 
             logonLength += bytesRead;
             if (logonLength >= requiredLogonLength) {
-                int parsingResult = SessionIDParser.parse(logonBuffer, 0, logonLength, sessionID);
+                int parsingResult = SessionIDParser.parseOpposite(logonBuffer, 0, logonLength, sessionID);
                 if (parsingResult > 0) {
                     continueExtraction = false;
                 } else {
@@ -123,11 +115,7 @@ abstract class SessionAcceptorWrapper implements Runnable {
         return logonLength;
     }
 
-    public void setSocket(Socket socket) {
-        this.socket = socket;
-    }
-
-    private static void close(Socket socket) {
+    protected static void close(Socket socket) {
         try {
             socket.close();
         } catch (IOException e) {
@@ -135,25 +123,17 @@ abstract class SessionAcceptorWrapper implements Runnable {
         }
     }
 
-    void logout(String cause) {
-        acceptor.logout(cause);
-    }
+    protected static class LogonMessageIsTooLongException extends FixParserException {
 
-    void close() {
-        acceptor.close();
-    }
+        protected static final LogonMessageIsTooLongException INSTANCE = new LogonMessageIsTooLongException("Logon message length is more than logon buffer length");
 
-    private static class LogonMessageIsTooLongException extends FixParserException {
-
-        private static final LogonMessageIsTooLongException INSTANCE = new LogonMessageIsTooLongException("Logon message length is more than logon buffer length");
-
-        private LogonMessageIsTooLongException(String message) {
+        protected LogonMessageIsTooLongException(String message) {
             super(message);
         }
 
         @Override
         public Throwable fillInStackTrace() {
-            return null;
+            return this;
         }
 
     }

@@ -36,14 +36,14 @@ public interface FixSession extends Runnable {
      * Session enters {@link org.f1x.api.session.SessionStatus#Disconnected} state.
      * Initiator will try to re-connect after little delay (delay is configurable, subject to session schedule).
      */
-    void disconnect(String cause);
+    void disconnect(CharSequence cause);
 
     /**
      * Send LOGOUT but do not drop socket connection.
      * Session enters {@link org.f1x.api.session.SessionStatus#InitiatedLogout} state.
      * @param cause Logout cause, can be null.
      */
-    void logout(String cause);
+    void logout(CharSequence cause);
 
     /** Send LOGOUT (if needed) and terminate socket connection. */
     void close(/*long timeout*/);

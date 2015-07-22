@@ -22,8 +22,6 @@ import org.f1x.v1.schedule.SessionTimes;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
-import java.io.IOException;
-import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -31,27 +29,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class FixSessionAcceptor extends FixSocketCommunicator {
     protected static final GFLog LOGGER = GFLogFactory.getLog(FixSessionAcceptor.class);
-    private SessionID sessionID;
+    private final SessionID sessionID;
     private final AtomicBoolean running = new AtomicBoolean();
 
-    public FixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
+    public FixSessionAcceptor(FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
         super(fixVersion, settings);
+        this.sessionID = sessionID;
     }
 
     @Override
     public SessionID getSessionID() {
         return sessionID;
-    }
-
-    public void connect(Socket socket, SessionID sessionID) throws IOException {
-        this.sessionID = sessionID;
-        connect(socket);
-    }
-
-    @Override
-    public void disconnect(String cause) {
-        super.disconnect(cause);
-        sessionID = null;
     }
 
     @Override
@@ -78,7 +66,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
             }
         } finally {
             //TODO: Find a better way to recycle state
-            // closeInProgress = false;
+            closeInProgress = false;
             running.set(false);
         }
     }

@@ -88,7 +88,7 @@ public class BufferedFixInitiator extends FixSessionInitiator {
     }
 
     @Override
-    public void disconnect(String cause) {
+    public void disconnect(CharSequence cause) {
         super.disconnect(cause);
 
         if (processorPool != null) {

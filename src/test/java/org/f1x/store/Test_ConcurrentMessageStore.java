@@ -98,8 +98,8 @@ public class Test_ConcurrentMessageStore extends TestCommon {
 
 
         public TestServer(int bindPort, SessionID sessionID, final MessageStore testMessageStore) {
-            super (null, bindPort, sessionID,
-                new FixSessionAcceptor(FixVersion.FIX44, new FixAcceptorSettings()) {
+            super (null, bindPort,
+                new FixSessionAcceptor(FixVersion.FIX44, sessionID, new FixAcceptorSettings()) {
                     private MessageBuilder messageBuilder; {
                         messageBuilder = createMessageBuilder();
                     }

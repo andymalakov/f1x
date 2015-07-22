@@ -22,20 +22,24 @@ public class Test_SessionIDParser {
     @Test
     public void testEmptySessionID() throws Exception {
         String message = "8=FIX.4.4|9=82|35=A|34=1|52=20140101-10:10:10.100|98=0|108=30|141=Y|383=8192|10=080|";
-        assertSessionID("", "", "", "", message);
+        assertSessionID(false, "", "", "", "", message);
     }
 
     @Test
     public void testCompletelyFilledSessionID() throws Exception {
         String message = "8=FIX.4.4|9=82|35=A|34=1|49=SC|50=SS|52=20140101-10:10:10.100|56=TC|57=TS|98=0|108=30|141=Y|383=8192|10=080|";
-        assertSessionID("SC", "SS", "TC", "TS", message);
+        assertSessionID(false, "SC", "SS", "TC", "TS", message);
+        assertSessionID(true, "TC", "TS", "SC", "SS", message);
     }
 
-    private static void assertSessionID(String senderCompID, String senderSubID, String targetCompID, String targetSubID, String message) {
+    private static void assertSessionID(boolean opposite, String senderCompID, String senderSubID, String targetCompID, String targetSubID, String message) {
         message = message.replace('|', '\u0001');
         byte[] messageBytes = AsciiUtils.getBytes(message);
         SessionIDByteReferences sessionID = new SessionIDByteReferences();
-        SessionIDParser.parse(messageBytes, 0, messageBytes.length, sessionID);
+        if (opposite)
+            SessionIDParser.parseOpposite(messageBytes, 0, messageBytes.length, sessionID);
+        else
+            SessionIDParser.parse(messageBytes, 0, messageBytes.length, sessionID);
 
         Assert.assertEquals(senderCompID, sessionID.getSenderCompId().toString());
         Assert.assertEquals(senderSubID, sessionID.getSenderSubId().toString());

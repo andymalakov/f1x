@@ -98,17 +98,17 @@ public class Test_SocketDroppingServer extends  TestCommon {
     private static class SocketDroppingServer extends SingleSessionAcceptor {
 
         public SocketDroppingServer(String host, int bindPort, SessionID sessionID) {
-            super(host, bindPort, sessionID, SocketDroppingServerSessionAcceptor.create());
+            super(host, bindPort, SocketDroppingServerSessionAcceptor.create(sessionID));
         }
     }
 
     private static class SocketDroppingServerSessionAcceptor extends FixSessionAcceptor {
-        private static SocketDroppingServerSessionAcceptor create() {
-            return new SocketDroppingServerSessionAcceptor(FixVersion.FIX44, new FixAcceptorSettings());
+        private static SocketDroppingServerSessionAcceptor create(SessionID sessionID) {
+            return new SocketDroppingServerSessionAcceptor(FixVersion.FIX44, sessionID, new FixAcceptorSettings());
         }
 
-        private SocketDroppingServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
-            super(fixVersion, settings);
+        private SocketDroppingServerSessionAcceptor(FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
+            super(fixVersion, sessionID, settings);
         }
 
         @Override

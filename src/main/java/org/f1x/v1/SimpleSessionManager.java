@@ -16,64 +16,82 @@ package org.f1x.v1;
 import org.f1x.api.session.FailedLockException;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionManager;
-import org.f1x.api.session.SessionState;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
 /**
  * Thread safe.
  */
 public class SimpleSessionManager implements SessionManager {
 
-    protected final int maxManagedSessions;
-    protected final ConcurrentHashMap<SessionID, SessionState> idToState;
-    protected final ConcurrentHashMap<SessionID, FixSessionAcceptor> idToAcceptor;
+    protected final Set<SessionID> lockedSessions = new HashSet<>();
 
-    public SimpleSessionManager(int maxManagedSessions) {
-        if (maxManagedSessions < 1)
-            throw new IllegalArgumentException("maxManagedSessions < 1");
+    protected volatile Map<SessionID, FixSessionAcceptor> sessions = Collections.emptyMap();
 
-        this.maxManagedSessions = maxManagedSessions;
-        this.idToState = new ConcurrentHashMap<>(maxManagedSessions);
-        this.idToAcceptor = new ConcurrentHashMap<>(maxManagedSessions);
+    @Override
+    public synchronized void addSession(FixSessionAcceptor acceptor) {
+        SessionID sessionID = acceptor.getSessionID();
+        if (sessions.containsKey(sessionID))
+            throw new IllegalArgumentException("Session with such session id already exists: " + sessionID);
+
+        Map<SessionID, FixSessionAcceptor> newSessions = copySessions();
+        newSessions.put(sessionID, acceptor);
+
+        this.sessions = newSessions;
     }
 
     @Override
-    public void add(SessionID sessionID, SessionState state) {
-        idToState.put(sessionID, state);
+    public synchronized FixSessionAcceptor removeSession(SessionID sessionID) {
+        FixSessionAcceptor acceptor = null;
+        if (sessions.containsKey(sessionID)) {
+            Map<SessionID, FixSessionAcceptor> newSessions = copySessions();
+            acceptor = newSessions.remove(sessionID);
+            this.sessions = newSessions;
+            acceptor.close();
+        }
+
+        return acceptor;
     }
 
     @Override
-    public void remove(SessionID sessionID) {
-        idToState.remove(sessionID);
+    public FixSessionAcceptor getSession(SessionID sessionID) {
+        return sessions.get(sessionID);
     }
 
     @Override
-    public SessionState lock(SessionID sessionID, FixSessionAcceptor acceptor) throws FailedLockException {
-        SessionState state = idToState.get(sessionID);
-        if (state == null)
+    public synchronized FixSessionAcceptor lockSession(SessionID sessionID) throws FailedLockException {
+        FixSessionAcceptor acceptor = sessions.get(sessionID);
+        if (acceptor == null)
             throw FailedLockException.UNREGISTERED_SESSION_ID;
 
-        FixSessionAcceptor previousSessionAcceptor = idToAcceptor.putIfAbsent(sessionID, acceptor);
-        if (previousSessionAcceptor != null)
+        if (lockedSessions.contains(sessionID))
             throw FailedLockException.SESSION_ID_IS_ALREADY_USED;
 
-        return state;
+        lockedSessions.add(sessionID);
+
+        return acceptor;
     }
 
     @Override
-    public void unlock(SessionID sessionID) {
-        idToAcceptor.remove(sessionID);
+    public synchronized FixSessionAcceptor unlockSession(SessionID sessionID) {
+        lockedSessions.remove(sessionID);
+        return getSession(sessionID);
     }
 
     @Override
-    public FixSessionAcceptor getSessionAcceptor(SessionID sessionID) {
-        return idToAcceptor.get(sessionID);
+    public synchronized void close() {
+        for (FixSessionAcceptor acceptor : sessions.values())
+            acceptor.logout("Goodbye");
+
+        for (FixSessionAcceptor acceptor : sessions.values())
+            acceptor.close();
+
+        sessions = Collections.emptyMap();
+        lockedSessions.clear();
     }
 
-    @Override
-    public int getMaxManagedSessions() {
-        return maxManagedSessions;
+    protected HashMap<SessionID, FixSessionAcceptor> copySessions() {
+        return new HashMap<>(this.sessions);
     }
 
 }

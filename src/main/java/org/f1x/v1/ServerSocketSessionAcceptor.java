@@ -29,13 +29,13 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
 
     protected static final GFLog LOGGER = GFLogFactory.getLog(ServerSocketSessionAcceptor.class);
 
-    private BindInterceptor bindInterceptor;
-    private ConnectionInterceptor connectionInterceptor = new DefaultConnectionInterceptor();
-    private final int bindPort;
-    private final String bindAddress;
+    protected BindInterceptor bindInterceptor;
+    protected ConnectionInterceptor connectionInterceptor = new DefaultConnectionInterceptor();
+    protected final int bindPort;
+    protected final String bindAddress;
 
-    private volatile boolean active = true;
-    private volatile ServerSocket ss = null;
+    protected volatile boolean active = true;
+    protected volatile ServerSocket ss = null;
 
     /**
      *
@@ -70,6 +70,9 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
             acceptInboundConnections(ss);
         } catch (Throwable e) {
             LOGGER.error().append("Terminating FIX Acceptor due to error").append(e).commit();
+        } finally {
+            closeServerSocket();
+            ss = null;
         }
     }
 
@@ -96,7 +99,10 @@ public abstract class ServerSocketSessionAcceptor implements Runnable {
 
     public void close() {
         active = false;
+        closeServerSocket();
+    }
 
+    protected void closeServerSocket() {
         ServerSocket ss = this.ss;
         if (ss != null) {
             try {

@@ -22,31 +22,28 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class SingleSessionAcceptor extends ServerSocketSessionAcceptor {
-    private final SessionID sessionID;
     private final FixSessionAcceptor acceptor;
 
     public SingleSessionAcceptor(String bindAddr, int bindPort, FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
         super(bindAddr, bindPort);
-        this.sessionID = sessionID;
-        this.acceptor = new FixSessionAcceptor(fixVersion, settings) {};
+        this.acceptor = new FixSessionAcceptor(fixVersion, sessionID, settings);
     }
 
-    public SingleSessionAcceptor(String bindAddr, int bindPort, SessionID sessionID, FixSessionAcceptor acceptor) {
+    public SingleSessionAcceptor(String bindAddr, int bindPort, FixSessionAcceptor acceptor) {
         super(bindAddr, bindPort);
-        this.sessionID = sessionID;
         this.acceptor = acceptor;
     }
 
     @Override
     protected boolean processInboundConnection(Socket socket) throws IOException {
-        acceptor.connect(socket, sessionID);
+        acceptor.connect(socket);
         acceptor.run();
         return true;
     }
 
     @Override
     public void close() {
-        acceptor.close();
         super.close();
+        acceptor.close();
     }
 }

@@ -7,9 +7,7 @@ import org.junit.Test;
 import quickfix.InvalidMessage;
 import quickfix.Message;
 
-import java.util.Scanner;
-
-
+@Ignore
 public final class Test_DecodingNewOrderSingle {
 
     private static final int WARMUP = 20_000;

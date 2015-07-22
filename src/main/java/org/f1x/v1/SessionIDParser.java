@@ -18,44 +18,80 @@ import org.f1x.api.message.fields.FixTags;
 import org.f1x.io.parsers.SimpleMessageScanner;
 
 /**
- * Extracts Session identity from byte array containing message
+ * Extracts Session identity from byte array containing inbound/outbound message
  */
 public class SessionIDParser {
 
-    private static final SimpleMessageScanner<SessionIDByteReferences> LOGON_MESSAGE_SCANNER = new SimpleMessageScanner<SessionIDByteReferences>() {
-
-        @Override
-        protected boolean onTagNumber(int tagNum, SessionIDByteReferences sessionID) throws FixParserException {
-            return (tagNum == FixTags.SenderCompID) || (tagNum == FixTags.SenderSubID) ||
-                    (tagNum == FixTags.TargetCompID) || (tagNum == FixTags.TargetSubID);
-        }
-
-        @Override
-        protected boolean onTagValue(int tagNum, byte[] message, int tagValueStart, int tagValueLen, SessionIDByteReferences sessionID) throws FixParserException {
-            switch (tagNum) {
-                case FixTags.SenderCompID:
-                    sessionID.setSenderCompId(message, tagValueStart, tagValueLen);
-                    break;
-                case FixTags.SenderSubID:
-                    sessionID.setSenderSubId(message, tagValueStart, tagValueLen);
-                    break;
-                case FixTags.TargetCompID:
-                    sessionID.setTargetCompId(message, tagValueStart, tagValueLen);
-                    break;
-                case FixTags.TargetSubID:
-                    sessionID.setTargetSubId(message, tagValueStart, tagValueLen);
-                    break;
-            }
-            return true;
-        }
-    };
+    private static final SessionIDScanner SESSION_ID_SCANNER = new SessionIDScanner();
+    private static final SessionIDScanner OPPOSITE_SESSION_ID_SCANNER = new OppositeSessionIDParser();
 
     private SessionIDParser() {
         // hide
     }
 
     public static int parse(byte[] buffer, int offset, int length, SessionIDByteReferences sessionID) throws SimpleMessageScanner.MessageFormatException {
-        return LOGON_MESSAGE_SCANNER.parse(buffer, offset, length, sessionID);
+        return parse(buffer, offset, length, sessionID, SESSION_ID_SCANNER);
+    }
+
+    public static int parseOpposite(byte[] buffer, int offset, int length, SessionIDByteReferences sessionID) throws SimpleMessageScanner.MessageFormatException {
+        return parse(buffer, offset, length, sessionID, OPPOSITE_SESSION_ID_SCANNER);
+    }
+
+    private static int parse(byte[] buffer, int offset, int length, SessionIDByteReferences sessionID, SessionIDScanner scanner) throws SimpleMessageScanner.MessageFormatException {
+        return scanner.parse(buffer, offset, length, sessionID);
+    }
+
+    private static class SessionIDScanner extends SimpleMessageScanner<SessionIDByteReferences> {
+
+        @Override
+        protected boolean onTagNumber(int tag, SessionIDByteReferences sessionID) throws FixParserException {
+            return (tag == FixTags.SenderCompID) || (tag == FixTags.SenderSubID) ||
+                    (tag == FixTags.TargetCompID) || (tag == FixTags.TargetSubID);
+        }
+
+        @Override
+        protected boolean onTagValue(int tag, byte[] message, int valueStart, int valueLength, SessionIDByteReferences sessionID) throws FixParserException {
+            switch (tag) {
+                case FixTags.SenderCompID:
+                    sessionID.setSenderCompId(message, valueStart, valueLength);
+                    break;
+                case FixTags.SenderSubID:
+                    sessionID.setSenderSubId(message, valueStart, valueLength);
+                    break;
+                case FixTags.TargetCompID:
+                    sessionID.setTargetCompId(message, valueStart, valueLength);
+                    break;
+                case FixTags.TargetSubID:
+                    sessionID.setTargetSubId(message, valueStart, valueLength);
+                    break;
+            }
+
+            return true;
+        }
+    }
+
+    private static class OppositeSessionIDParser extends SessionIDScanner {
+
+        @Override
+        protected boolean onTagValue(int tag, byte[] message, int valueStart, int valueLength, SessionIDByteReferences sessionID) throws FixParserException {
+            switch (tag) {
+                case FixTags.SenderCompID:
+                    sessionID.setTargetCompId(message, valueStart, valueLength);
+                    break;
+                case FixTags.SenderSubID:
+                    sessionID.setTargetSubId(message, valueStart, valueLength);
+                    break;
+                case FixTags.TargetCompID:
+                    sessionID.setSenderCompId(message, valueStart, valueLength);
+                    break;
+                case FixTags.TargetSubID:
+                    sessionID.setSenderSubId(message, valueStart, valueLength);
+                    break;
+            }
+
+            return true;
+        }
+
     }
 
 }

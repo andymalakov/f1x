@@ -8,7 +8,7 @@ public class Test_FileSessionState extends SessionStateTest {
     private File tempFile;
 
     @Override
-    protected SimpleFileSessionStore createSessionState() throws IOException {
+    protected SimpleFileSessionStore createSessionState() throws IOException, SimpleFileSessionStore.LostSessionStateException {
         tempFile = File.createTempFile("SessionState", null);
         tempFile.delete();
         return new SimpleFileSessionStore(tempFile);

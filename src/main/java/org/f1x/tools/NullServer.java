@@ -23,7 +23,6 @@ import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
 import org.gflogger.config.xml.XmlLogFactoryConfigurator;
 
-
 import java.io.IOException;
 
 /** Receives inbound FIX messages and does nothing else */
@@ -34,13 +33,13 @@ public class NullServer extends SingleSessionAcceptor {
     }
 
     public NullServer(String host, int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        super(host, bindPort, sessionID, new NullServerSessionAcceptor(FixVersion.FIX44, settings));
+        super(host, bindPort, new NullServerSessionAcceptor(FixVersion.FIX44, sessionID, settings));
     }
 
     private static class NullServerSessionAcceptor extends FixSessionAcceptor {
 
-        public NullServerSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
-            super(fixVersion, settings);
+        public NullServerSessionAcceptor(FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
+            super(fixVersion, sessionID, settings);
         }
 
         @Override

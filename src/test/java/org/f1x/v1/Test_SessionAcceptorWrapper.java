@@ -4,7 +4,6 @@ import org.f1x.SessionIDBean;
 import org.f1x.TestCommon;
 import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.session.SessionManager;
-import org.f1x.api.session.SessionState;
 import org.f1x.util.AsciiUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -38,13 +37,13 @@ public class Test_SessionAcceptorWrapper extends TestCommon {
     @Before
     public void init() {
         onStopInvocationCount = 0;
-        manager = new SimpleSessionManager(10);
+        manager = new SimpleSessionManager();
         acceptor = mock(FixSessionAcceptor.class);
         when(acceptor.getSettings()).thenReturn(new FixAcceptorSettings());
-        wrapper = new SessionAcceptorWrapper(acceptor, manager, 500) {
+        wrapper = new SessionAcceptorWrapper(1024, 500, manager) {
 
             @Override
-            void onStop() {
+            protected void onStop() {
                 onStopInvocationCount++;
                 assertWrapperStateOnStop();
             }
@@ -111,7 +110,8 @@ public class Test_SessionAcceptorWrapper extends TestCommon {
     public void testLogonWithRegisteredSessionID() throws IOException {
         String logon = "8=FIX.4.4|9=74|35=A|34=1|49=SC|52=20140101-10:10:10.100|56=TC|98=0|108=30|141=Y|383=8192|10=080|NEXT MESSAGE";
         simulateMessageOnSocketRead(logon);
-        manager.add(new SessionIDBean("SC", "TC"), createTestSessionState());
+        when(acceptor.getSessionID()).thenReturn(new SessionIDBean("TC", "SC"));
+        manager.addSession(acceptor);
         simulateWrapperRun();
         assertThatAcceptorWasStarted(logon);
     }
@@ -167,10 +167,6 @@ public class Test_SessionAcceptorWrapper extends TestCommon {
             }
 
         }), eq(expectedMessage.length()));
-    }
-
-    private static SessionState createTestSessionState() {
-        return mock(SessionState.class);
     }
 
 }

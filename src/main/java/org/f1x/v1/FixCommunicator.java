@@ -262,8 +262,10 @@ public abstract class FixCommunicator implements FixSession, Loggable {
             while (in != null) {
                 int bytesRead = in.read(inboundMessageBuffer, offset, inboundMessageBuffer.length - offset);
                 if (bytesRead <= 0) {
-                    if (closeInProgress)
+                    if (closeInProgress){
+                        disconnect("No socket data"); // TODO: disconnect?
                         break;
+                    }
                     throw ConnectionProblemException.NO_SOCKET_DATA;
                 } else {
                     offset = processInboundMessages(offset + bytesRead);
@@ -345,7 +347,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
 
     /** Send LOGOUT but do not drop socket connection (session enters {@link org.f1x.api.session.SessionStatus#InitiatedLogout} state)*/
     @Override
-    public void logout(String cause) {
+    public void logout(CharSequence cause) {
         sendLogout(cause);
     }
 
@@ -355,7 +357,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
      * Initiator will try to re-connect after little delay (delay is configurable, subject to session schedule).
      */
     @Override
-    public void disconnect(String cause) {
+    public void disconnect(CharSequence cause) {
         LOGGER.info().append(this).append("FIX Disconnect due to ").append(cause).commit();
 
         setSessionStatus(SessionStatus.Disconnected);

@@ -14,16 +14,16 @@
 package org.f1x.tools;
 
 import org.f1x.SessionIDBean;
+import org.f1x.api.FixAcceptorSettings;
 import org.f1x.api.FixVersion;
-import org.f1x.api.session.SessionID;
 import org.f1x.api.message.MessageBuilder;
 import org.f1x.api.message.MessageParser;
 import org.f1x.api.message.Tools;
 import org.f1x.api.message.fields.*;
 import org.f1x.api.message.types.ByteEnumLookup;
+import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
 import org.f1x.util.ByteArrayReference;
-import org.f1x.api.FixAcceptorSettings;
 import org.f1x.v1.FixSessionAcceptor;
 import org.f1x.v1.SingleSessionAcceptor;
 
@@ -37,7 +37,7 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
     }
 
     public SimpleFixAcceptor(int bindPort, SessionID sessionID, FixAcceptorSettings settings) {
-        super(null, bindPort, sessionID, new SimpleFixSessionAcceptor(FixVersion.FIX44, settings));
+        super(null, bindPort, new SimpleFixSessionAcceptor(FixVersion.FIX44, sessionID, settings));
     }
 
     public static void main (String [] args) throws InterruptedException, IOException {
@@ -61,8 +61,8 @@ public class SimpleFixAcceptor extends SingleSessionAcceptor {
 
         private volatile int orderCount;
 
-        public SimpleFixSessionAcceptor(FixVersion fixVersion, FixAcceptorSettings settings) {
-            super(fixVersion, settings);
+        public SimpleFixSessionAcceptor(FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
+            super(fixVersion, sessionID, settings);
             //allocs//scheduleStats(15000);
 
             mb = createMessageBuilder();

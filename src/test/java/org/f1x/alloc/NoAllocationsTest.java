@@ -25,6 +25,7 @@ import org.f1x.tools.SimpleFixAcceptor;
 import org.f1x.tools.SimpleFixInitiator;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -38,6 +39,7 @@ import java.util.concurrent.TimeUnit;
  * This test verifies that there are no allocations in during session.
  * NOTE: you must run JVM with  -javaagent:allocation.jar option
  */
+@Ignore
 public class NoAllocationsTest /*extends TestCommon */{
 
     private static final String INITIATOR_SENDER_ID = "INITIATOR";

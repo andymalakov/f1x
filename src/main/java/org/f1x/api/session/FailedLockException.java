@@ -9,4 +9,9 @@ public class FailedLockException extends Exception {
         super(message);
     }
 
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
+
 }
