@@ -19,8 +19,6 @@ import org.f1x.SessionIDBean;
 import org.f1x.api.session.SessionEventListener;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
-import org.f1x.io.socket.DefaultBindInterceptor;
-import org.f1x.io.socket.DefaultConnectionInterceptor;
 import org.f1x.tools.SimpleFixAcceptor;
 import org.f1x.tools.SimpleFixInitiator;
 import org.junit.After;
@@ -83,8 +81,6 @@ public class NoAllocationsTest /*extends TestCommon */{
         };
 
         final SimpleFixAcceptor acceptor = createAcceptor(7890);
-        acceptor.setBindInterceptor(new DefaultBindInterceptor());
-        acceptor.setConnectionInterceptor(new DefaultConnectionInterceptor());
         final SimpleFixInitiator initiator = createInitiator(7890);
 
         initiator.setEventListener(eventListener);

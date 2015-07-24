@@ -16,13 +16,11 @@ package org.f1x.api.session;
 
 import org.f1x.api.FixSettings;
 import org.f1x.api.message.MessageBuilder;
-import org.f1x.io.socket.ConnectionInterceptor;
 
 import java.io.IOException;
 
 public interface FixSession extends Runnable {
     void setEventListener(SessionEventListener eventListener);
-    void setConnectionInterceptor(ConnectionInterceptor connectionInterceptor);
 
     SessionID getSessionID();
     FixSettings getSettings();

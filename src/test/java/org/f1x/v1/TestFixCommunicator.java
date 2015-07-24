@@ -18,13 +18,9 @@ import org.f1x.api.FixSettings;
 import org.f1x.api.FixVersion;
 import org.f1x.api.session.SessionID;
 import org.f1x.api.session.SessionStatus;
-import org.f1x.io.EmptyInputChannel;
 import org.f1x.io.InputChannel;
 import org.f1x.io.OutputChannel;
-import org.f1x.io.socket.ConnectionInterceptor;
 import org.f1x.util.TimeSource;
-
-import java.io.IOException;
 
 class TestFixCommunicator extends FixCommunicator {
     private final SessionID sessionID;
@@ -34,7 +30,7 @@ class TestFixCommunicator extends FixCommunicator {
 
         this.sessionID = sessionID;
 
-        connect (in, out);
+        connect(in, out);
         setSessionStatus(SessionStatus.ApplicationConnected);
     }
 
@@ -42,10 +38,6 @@ class TestFixCommunicator extends FixCommunicator {
     public TestFixCommunicator(SessionID sessionID, TimeSource timeSource) {
         super(FixVersion.FIX44, new FixSettings(), timeSource);
         this.sessionID = sessionID;
-    }
-
-    @Override
-    public void setConnectionInterceptor(ConnectionInterceptor connectionInterceptor) {
     }
 
     @Override

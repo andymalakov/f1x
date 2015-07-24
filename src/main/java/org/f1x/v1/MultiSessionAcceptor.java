@@ -20,12 +20,14 @@ import org.f1x.util.ObjectPool;
 import org.gflogger.GFLog;
 import org.gflogger.GFLogFactory;
 
-import java.io.IOException;
 import java.net.Socket;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
-public class MultiSessionAcceptor extends ServerSocketSessionAcceptor {
+public class MultiSessionAcceptor extends AbstractSessionAcceptor {
 
     private static final GFLog LOGGER = GFLogFactory.getLog(MultiSessionAcceptor.class);
 
@@ -33,19 +35,16 @@ public class MultiSessionAcceptor extends ServerSocketSessionAcceptor {
     private final ExecutorService executor;
     private final SessionManager manager;
 
-    private boolean closed;
-
-    public MultiSessionAcceptor(String bindAddress, int bindPort, int logonBufferSize, int logonTimeout, int maxActiveSessions, SessionManager manager) {
-        this(bindAddress, bindPort, logonBufferSize, logonTimeout, maxActiveSessions, manager, new ThreadPoolExecutor(maxActiveSessions, maxActiveSessions, 0, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<Runnable>(maxActiveSessions * 2)));
+    public MultiSessionAcceptor(String host, int port, int logonBufferSize, int logonTimeout, int maxActiveSessions, SessionManager manager) {
+        this(host, port, logonBufferSize, logonTimeout, maxActiveSessions, manager, createThreadPool(maxActiveSessions));
     }
 
     /**
      * @param logonTimeout in milliseconds
      */
-    public MultiSessionAcceptor(String bindAddress, int bindPort, int logonBufferSize, int logonTimeout, int maxActiveSessions, SessionManager manager, ExecutorService executor) {
-        super(bindAddress, bindPort);
+    public MultiSessionAcceptor(String host, int port, int logonBufferSize, int logonTimeout, int maxActiveSessions, SessionManager manager, ExecutorService executor) {
+        super(host, port, maxActiveSessions);
         check(logonTimeout, manager, executor);
-
         this.acceptorPool = createAcceptorPool(logonBufferSize, logonTimeout, maxActiveSessions, manager);
         this.executor = executor;
         this.manager = manager;
@@ -55,40 +54,23 @@ public class MultiSessionAcceptor extends ServerSocketSessionAcceptor {
         return manager;
     }
 
-    public void close() {
-        super.close();
-
-        synchronized (this) {
-            if (!closed) {
-                executor.shutdown();
-                manager.close();
-                closed = true;
-            }
+    @Override
+    protected void processConnection(Socket socket) {
+        SessionAcceptorWrapper acceptor = acceptorPool.borrow();
+        if (acceptor == null) {
+            LOGGER.warn().append("Multi Session Acceptor ran out of free acceptors.").commit();
+            closeSocket(socket);
+        } else {
+            acceptor.setSocket(socket);
+            executor.execute(acceptor);
         }
     }
 
     @Override
-    protected boolean processInboundConnection(Socket socket) throws IOException {
-        SessionAcceptorWrapper acceptor = acceptorPool.borrow();
-        if (acceptor == null) {
-            LOGGER.warn().append("Multi Session Acceptor ran out of free acceptors.").commit();
-            return false;
-        } else {
-            return accept(socket, acceptor);
-        }
-    }
-
-    protected boolean accept(Socket socket, SessionAcceptorWrapper acceptor) {
-        acceptor.setSocket(socket);
-        try {
-            executor.execute(acceptor);
-            return false;
-        } catch (RejectedExecutionException e) {
-            LOGGER.warn().append("Someone called accept after calling close.").append(e).commit();
-            acceptor.setSocket(null);
-            acceptorPool.release(acceptor);
-            return true;
-        }
+    protected void shutdown() {
+        super.shutdown();
+        manager.close();
+        executor.shutdown();
     }
 
     protected ObjectPool<SessionAcceptorWrapper> createAcceptorPool(final int logonBufferSize, final int logonTimeout, int maxActiveSessions, final SessionManager manager) {
@@ -107,12 +89,16 @@ public class MultiSessionAcceptor extends ServerSocketSessionAcceptor {
         });
     }
 
-    protected void check(int logonTimeout, SessionManager manager, ExecutorService executor) {
+    protected static void check(int logonTimeout, SessionManager manager, ExecutorService executor) {
         if (logonTimeout < 1)
             throw new IllegalArgumentException("logonTimeout < 1");
 
         Objects.requireNonNull(manager, "manager == null");
         Objects.requireNonNull(executor, "executor == null");
+    }
+
+    protected static ThreadPoolExecutor createThreadPool(int maxActiveSessions) {
+        return new ThreadPoolExecutor(0, maxActiveSessions, 0L, TimeUnit.MICROSECONDS, new ArrayBlockingQueue<Runnable>(maxActiveSessions * 2));
     }
 
 }

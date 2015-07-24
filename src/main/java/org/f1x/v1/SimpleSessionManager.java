@@ -27,6 +27,7 @@ public class SimpleSessionManager implements SessionManager {
     protected final Set<SessionID> lockedSessions = new HashSet<>();
 
     protected volatile Map<SessionID, FixSessionAcceptor> sessions = Collections.emptyMap();
+    protected boolean active = true;
 
     @Override
     public synchronized void addSession(FixSessionAcceptor acceptor) {
@@ -46,8 +47,8 @@ public class SimpleSessionManager implements SessionManager {
         if (sessions.containsKey(sessionID)) {
             Map<SessionID, FixSessionAcceptor> newSessions = copySessions();
             acceptor = newSessions.remove(sessionID);
-            this.sessions = newSessions;
             acceptor.close();
+            this.sessions = newSessions;
         }
 
         return acceptor;
@@ -60,6 +61,8 @@ public class SimpleSessionManager implements SessionManager {
 
     @Override
     public synchronized FixSessionAcceptor lockSession(SessionID sessionID) throws FailedLockException {
+        checkActive();
+
         FixSessionAcceptor acceptor = sessions.get(sessionID);
         if (acceptor == null)
             throw FailedLockException.UNREGISTERED_SESSION_ID;
@@ -80,18 +83,24 @@ public class SimpleSessionManager implements SessionManager {
 
     @Override
     public synchronized void close() {
-        for (FixSessionAcceptor acceptor : sessions.values())
-            acceptor.logout("Goodbye");
+        if (active) {
+            active = false;
 
-        for (FixSessionAcceptor acceptor : sessions.values())
-            acceptor.close();
+            for (FixSessionAcceptor acceptor : sessions.values())
+                acceptor.close();
 
-        sessions = Collections.emptyMap();
-        lockedSessions.clear();
+            sessions = Collections.emptyMap();
+            lockedSessions.clear();
+        }
     }
 
     protected HashMap<SessionID, FixSessionAcceptor> copySessions() {
         return new HashMap<>(this.sessions);
+    }
+
+    protected synchronized void checkActive() throws FailedLockException {
+        if(!active)
+            throw FailedLockException.CLOSED_SESSION_MANAGER;
     }
 
 }

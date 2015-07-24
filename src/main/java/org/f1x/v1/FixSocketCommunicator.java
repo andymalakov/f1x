@@ -21,8 +21,6 @@ import org.f1x.io.InputChannel;
 import org.f1x.io.InputStreamChannel;
 import org.f1x.io.OutputChannel;
 import org.f1x.io.OutputStreamChannel;
-import org.f1x.io.socket.ConnectionInterceptor;
-import org.f1x.io.socket.DefaultConnectionInterceptor;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -30,18 +28,9 @@ import java.net.SocketAddress;
 
 public abstract class FixSocketCommunicator extends FixCommunicator {
 
-    private ConnectionInterceptor connectionInterceptor = new DefaultConnectionInterceptor();
 
     public FixSocketCommunicator(FixVersion fixVersion, FixSettings settings) {
         super(fixVersion, settings);
-    }
-
-    public void setConnectionInterceptor(ConnectionInterceptor connectionInterceptor) {
-        this.connectionInterceptor = connectionInterceptor;
-    }
-
-    public ConnectionInterceptor getConnectionInterceptor() {
-        return connectionInterceptor;
     }
 
     protected void connect (Socket socket) throws IOException {
@@ -49,9 +38,6 @@ public abstract class FixSocketCommunicator extends FixCommunicator {
             SocketAddress address = socket.getRemoteSocketAddress();
             LOGGER.info().append("Connected to ").append(address).commit();
         }
-
-        if (connectionInterceptor != null)
-            connectionInterceptor.onNewConnection(socket);
 
         setSessionStatus(SessionStatus.SocketConnected);
         connect(getInputChannel(socket), getOutputChannel(socket));

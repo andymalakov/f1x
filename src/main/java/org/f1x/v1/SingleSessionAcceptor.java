@@ -14,36 +14,36 @@
 
 package org.f1x.v1;
 
-import org.f1x.api.FixAcceptorSettings;
-import org.f1x.api.FixVersion;
-import org.f1x.api.session.SessionID;
-
-import java.io.IOException;
 import java.net.Socket;
 
-public class SingleSessionAcceptor extends ServerSocketSessionAcceptor {
+public class SingleSessionAcceptor extends AbstractSessionAcceptor {
+
+    protected static final int CONNECTION_QUEUE_SIZE = 1;
+
     private final FixSessionAcceptor acceptor;
 
-    public SingleSessionAcceptor(String bindAddr, int bindPort, FixVersion fixVersion, SessionID sessionID, FixAcceptorSettings settings) {
-        super(bindAddr, bindPort);
-        this.acceptor = new FixSessionAcceptor(fixVersion, sessionID, settings);
-    }
-
-    public SingleSessionAcceptor(String bindAddr, int bindPort, FixSessionAcceptor acceptor) {
-        super(bindAddr, bindPort);
+    public SingleSessionAcceptor(String host, int port, FixSessionAcceptor acceptor) {
+        super(host, port, CONNECTION_QUEUE_SIZE);
         this.acceptor = acceptor;
     }
 
     @Override
-    protected boolean processInboundConnection(Socket socket) throws IOException {
-        acceptor.connect(socket);
-        acceptor.run();
-        return true;
+    protected void processConnection(Socket socket) {
+        try {
+            acceptor.connect(socket);
+            acceptor.run();
+        } catch (Exception e) {
+            LOGGER.warn().append("Error processing inbound connection: ").append(e.getMessage()).append(e).commit();
+            closeSocket(socket);
+        }
     }
 
     @Override
-    public void close() {
-        super.close();
-        acceptor.close();
+    public synchronized void close() {
+        if (active) {
+            super.close();
+            acceptor.close();
+        }
     }
+
 }
