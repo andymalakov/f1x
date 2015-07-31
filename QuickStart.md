@@ -68,9 +68,7 @@ In order to process inbound messages override `processInboundAppMessage()` metho
 
 FixSession session = new FixSessionInitiator("localhost", 9999, FixVersion.FIX44, sessionID) {
   @Override
-  protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) 
-    throws IOException
-  {
+  protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) throws IOException {
     if(Tools.equals(MsgType.MARKET_DATA_REQUEST, msgType))
       processMarketDataRequest(parser);
   }
