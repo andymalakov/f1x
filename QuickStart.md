@@ -1,4 +1,4 @@
-# 3-minute F1X introduction #
+# 3-minute introduction into F1X#
 
 This page assumes reader is familiar with basics of [FIX Protocol](http://en.wikipedia.org/wiki/Financial_Information_eXchange).
 ## FIX Client ##
@@ -30,7 +30,7 @@ Let's send a FIX message as soon as both sides exchanged LOGON requests and FIX 
 
 session.setEventListener(new SessionEventListener() {
   @Override
-  public void onStateChanged(SessionID sessionID, SessionState oldState, SessionState newState) {
+  public void onStateChanged(SessionID sessionID, SessionStatus oldState, SessionStatus newState) {
     if (newState == SessionState.ApplicationConnected)
       sendSampleMessage(session);
   }
@@ -68,7 +68,9 @@ In order to process inbound messages override `processInboundAppMessage()` metho
 
 FixSession session = new FixSessionInitiator("localhost", 9999, FixVersion.FIX44, sessionID) {
   @Override
-  protected void processInboundAppMessage(CharSequence msgType, MessageParser parser) throws IOException {
+  protected void processInboundAppMessage(CharSequence msgType, int msgSeqNum, boolean possDup, MessageParser parser) 
+    throws IOException
+  {
     if(Tools.equals(MsgType.MARKET_DATA_REQUEST, msgType))
       processMarketDataRequest(parser);
   }
