@@ -675,11 +675,11 @@ public abstract class FixCommunicator implements FixSession, Loggable {
     /**
      * Handle inbound LOGON message depending on FIX session role (acceptor/initator) and current status
      */
-    protected void processInboundLogon(int msgSeqNumX, MessageParser parser) throws IOException, InvalidFixMessageException, ConnectionProblemException {
+    protected void processInboundLogon(int msgSeqNum, MessageParser parser) throws IOException, InvalidFixMessageException, ConnectionProblemException {
         LOGGER.debug().append(this).append("Processing inbound LOGON(A)").commit();
 
-        if (msgSeqNumX < 0) {
-            LOGGER.warn().append(this).append("Received LOGON(A) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNumX).commit();
+        if (msgSeqNum < 0) {
+            LOGGER.warn().append(this).append("Received LOGON(A) message with PossDupFlag=Y - ignoring. MsgSeqNum ").append(-msgSeqNum).commit();
             return;
         }
 
@@ -697,10 +697,12 @@ public abstract class FixCommunicator implements FixSession, Loggable {
                 case FixTags.ResetSeqNumFlag:
                     resetSeqNum = parser.getBooleanValue();
                     //if (getSessionStatus() != SessionStatus.ApplicationConnected) // Unless we are dealing with In-Session sequence reset
-                        if(resetSeqNum && msgSeqNumX != 1)
-                           throw InvalidFixMessageException.MSG_SEQ_NUM_MUST_BE_ONE;
+                    if(resetSeqNum && msgSeqNum != 1)
+                        throw InvalidFixMessageException.MSG_SEQ_NUM_MUST_BE_ONE;
 
                     break;
+                default:
+                    processCustomLogonTag(parser);
             }
         }
 
@@ -715,8 +717,8 @@ public abstract class FixCommunicator implements FixSession, Loggable {
             throw InvalidFixMessageException.IN_SESSION_LOGON_MESSAGE_WITHOUT_MSG_SEQ_RESET_NOT_EXPECTED;
 
         int expectedTargetSeqNum = sessionState.getNextTargetSeqNum();
-        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNumX, expectedTargetSeqNum);
-        sessionState.setNextTargetSeqNum(msgSeqNumX + 1);
+        boolean expectedTargetMsgSeqNum = checkTargetMsgSeqNum(msgSeqNum, expectedTargetSeqNum);
+        sessionState.setNextTargetSeqNum(msgSeqNum + 1);
 
         if (currentStatus == SessionStatus.SocketConnected) {
             setSessionStatus(SessionStatus.ReceivedLogon);
@@ -732,8 +734,14 @@ public abstract class FixCommunicator implements FixSession, Loggable {
         }
 
         // *After* sending a Logon confirmation back, send a ResendRequest
-        if (!expectedTargetMsgSeqNum)
-            sendResendRequest(expectedTargetSeqNum, msgSeqNumX);
+        if ( ! expectedTargetMsgSeqNum)
+            sendResendRequest(expectedTargetSeqNum, msgSeqNum);
+
+    }
+
+    /** Can be used to validate custom logon tags (e.g. Password(443) tag) */
+    protected void processCustomLogonTag(MessageParser parser) {
+        // by default does nothing
     }
 
     @SuppressWarnings("unused")
