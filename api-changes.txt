@@ -1,3 +1,7 @@
+Changes in 0.6.19
+==============
+ * FixCommunicator now allows processing of custom LOGON tags
+
 Changes in 0.2
 ==============
  * enum SessionState renamed to SessionStatus. SessionState now describe complex session state.
