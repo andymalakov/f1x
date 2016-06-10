@@ -953,12 +953,14 @@ public abstract class FixCommunicator implements FixSession, Loggable {
                 case FixTags.MsgSeqNum:
                 case FixTags.BeginString:
                 case FixTags.BodyLength:
-                case FixTags.SendingTime:
                 case FixTags.SenderCompID:
                 case FixTags.SenderSubID:
                 case FixTags.TargetCompID:
                 case FixTags.TargetSubID:
                 case FixTags.CheckSum:
+                    break;
+                case FixTags.SendingTime:
+                    messageBuilder.add(FixTags.OrigSendingTime, parser.getCharSequenceValue());
                     break;
                 default:
                     messageBuilder.add(tagNum, parser.getCharSequenceValue());
