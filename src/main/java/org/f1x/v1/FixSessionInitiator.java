@@ -103,9 +103,12 @@ public class FixSessionInitiator extends FixSocketCommunicator {
     protected void startSession(boolean needPause) throws InterruptedException {
         boolean newFixSession = waitForSessionStart();
         connect(needPause);
-        if (newFixSession)
+        if (newFixSession) {
             sessionState.resetNextSeqNums();
-        logon(newFixSession);
+            messageStore.clean();
+        }
+
+        logon(getSettings().isResetSequenceNumbersOnEachLogon());
         scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
     }
 

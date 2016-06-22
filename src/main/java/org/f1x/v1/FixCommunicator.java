@@ -1076,8 +1076,8 @@ public abstract class FixCommunicator implements FixSession, Loggable {
             timer.cancel();
     }
 
-    protected void scheduleSessionMonitoring(long period){
-        if (sessionMonitoringTask.get() != null) {
+    protected synchronized void scheduleSessionMonitoring(long period){
+        if (sessionMonitoringTask.get() == null) {
             SessionMonitoringTask timer = new SessionMonitoringTask(this);
             GlobalTimer.getInstance().schedule(timer, period, period);
             sessionMonitoringTask.set(timer);
@@ -1086,7 +1086,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
         }
     }
 
-    protected void unscheduleSessionMonitoring() {
+    protected synchronized void unscheduleSessionMonitoring() {
         TimerTask timer = sessionMonitoringTask.getAndSet(null);
         if (timer != null)
             timer.cancel();

@@ -106,8 +106,10 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
                 return false;
 
             final long lastConnectionTime = sessionState.getLastConnectionTimestamp();
-            if (lastConnectionTime < sessionStart)
+            if (lastConnectionTime < sessionStart) {
                 sessionState.resetNextSeqNums();
+                messageStore.clean();
+            }
 
             long sessionEnd = sessionTimes.getEnd();
             scheduleSessionEnd(sessionEnd - now);
