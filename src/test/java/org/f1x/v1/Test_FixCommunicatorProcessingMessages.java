@@ -416,7 +416,7 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
         String inboundLogout = "8=FIX.4.4|9=57|35=5|34=3|49=SENDER|52=20140522-12:07:39.552|56=RECEIVER|10=024|";
 
         String expectedOutboundGapFill1 =  "8=FIX.4.4|9=73|35=4|34=1|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=2|123=Y|10=215|"; // Gap fill [1..1]
-        String expectedRejectRebroadcast = "8=FIX.4.4|9=84|35=3|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=184|"; // REJECT
+        String expectedRejectRebroadcast = "8=FIX.4.4|9=110|35=3|34=2|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|45=123|373=1|58=Cause|10=189|"; // REJECT
         String expectedOutboundGapFill2 =  "8=FIX.4.4|9=73|35=4|34=3|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=4|123=Y|10=219|"; // Gap fill [3..3]
 
         setSessionStatus(SessionStatus.InitiatedLogout);
@@ -818,9 +818,9 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     public void testResendRequestForInfinity() {
         String inboundTestRequest = "8=FIX.4.4|9=66|35=2|34=5|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=0|10=136|";
         String firstExpectedOutboundGapFill = "8=FIX.4.4|9=73|35=4|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=9|123=Y|10=226|";
-        String expectedOutboundReject = "8=FIX.4.4|9=84|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=191|";
+        String expectedOutboundReject = "8=FIX.4.4|9=110|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|45=123|373=1|58=Cause|10=196|";
         String secondExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=10|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=11|123=Y|10=057|";
-        String expectedOutboundNewOrder = "8=FIX.4.4|9=84|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|1=Account|11=OrderID|10=121|";
+        String expectedOutboundNewOrder = "8=FIX.4.4|9=110|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|1=Account|11=OrderID|10=126|";
         String thirdExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=12|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=15|123=Y|10=063|";
 
         setNextSeqNums(5, 15);
@@ -843,9 +843,9 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     public void testResendRequest() {
         String inboundTestRequest = "8=FIX.4.4|9=67|35=2|34=5|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
         String firstExpectedOutboundGapFill = "8=FIX.4.4|9=73|35=4|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=9|123=Y|10=226|";
-        String expectedOutboundReject = "8=FIX.4.4|9=84|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=191|";
+        String expectedOutboundReject = "8=FIX.4.4|9=110|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|45=123|373=1|58=Cause|10=196|";
         String secondExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=10|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=11|123=Y|10=057|";
-        String expectedOutboundNewOrder = "8=FIX.4.4|9=84|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|1=Account|11=OrderID|10=121|";
+        String expectedOutboundNewOrder = "8=FIX.4.4|9=110|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|1=Account|11=OrderID|10=126|";
         String thirdExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=12|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=21|123=Y|10=060|";
 
         setNextSeqNums(5, 25);
@@ -921,9 +921,9 @@ public class Test_FixCommunicatorProcessingMessages extends TestCommon {
     public void testResendRequestWithSeqNumMoreExpected() {
         String inboundResendRequest = "8=FIX.4.4|9=67|35=2|34=9|49=SENDER|52=19700101-00:00:00.000|56=RECEIVER|7=5|16=20|10=136|";
         String firstExpectedOutboundGapFill = "8=FIX.4.4|9=73|35=4|34=5|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=9|123=Y|10=226|";
-        String expectedOutboundReject = "8=FIX.4.4|9=84|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|45=123|373=1|58=Cause|10=191|";
+        String expectedOutboundReject = "8=FIX.4.4|9=110|35=3|34=9|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|45=123|373=1|58=Cause|10=196|";
         String secondExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=10|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=11|123=Y|10=057|";
-        String expectedOutboundNewOrder = "8=FIX.4.4|9=84|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|1=Account|11=OrderID|10=121|";
+        String expectedOutboundNewOrder = "8=FIX.4.4|9=110|35=D|34=11|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|122=20140101-10:10:10.100|1=Account|11=OrderID|10=126|";
         String thirdExpectedOutboundGapFill = "8=FIX.4.4|9=75|35=4|34=12|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|43=Y|36=21|123=Y|10=060|";
         String expectedResendRequest = "8=FIX.4.4|9=67|35=2|34=25|49=RECEIVER|52=19700101-00:00:00.000|56=SENDER|7=5|16=8|10=145|";
 
