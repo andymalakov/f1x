@@ -116,7 +116,7 @@ public class FixSessionAcceptor extends FixSocketCommunicator {
         }
 
         //TODO: Do this when we transition to ApplicationConnected
-        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
+        scheduleSessionMonitoring();
 
         return true;
     }

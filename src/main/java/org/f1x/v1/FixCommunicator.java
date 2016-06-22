@@ -1076,13 +1076,16 @@ public abstract class FixCommunicator implements FixSession, Loggable {
             timer.cancel();
     }
 
-    protected synchronized void scheduleSessionMonitoring(long period){
-        if (sessionMonitoringTask.get() == null) {
-            SessionMonitoringTask timer = new SessionMonitoringTask(this);
-            GlobalTimer.getInstance().schedule(timer, period, period);
-            sessionMonitoringTask.set(timer);
-        } else {
-            LOGGER.warn().append(this).append("Monitoring task already defined").commit();
+    protected synchronized void scheduleSessionMonitoring() {
+        int checkIntervalMs = settings.getHeartbeatCheckIntervalMs();
+        if (checkIntervalMs > 0) {
+            if (sessionMonitoringTask.get() == null) {
+                SessionMonitoringTask timer = new SessionMonitoringTask(this);
+                GlobalTimer.getInstance().schedule(timer, checkIntervalMs, checkIntervalMs);
+                sessionMonitoringTask.set(timer);
+            } else {
+                LOGGER.warn().append(this).append("Monitoring task already defined").commit();
+            }
         }
     }
 

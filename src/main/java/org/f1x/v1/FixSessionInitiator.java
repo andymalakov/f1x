@@ -109,7 +109,7 @@ public class FixSessionInitiator extends FixSocketCommunicator {
         }
 
         logon(getSettings().isResetSequenceNumbersOnEachLogon());
-        scheduleSessionMonitoring(getSettings().getHeartBeatIntervalSec() * 1000);
+        scheduleSessionMonitoring();
     }
 
     private boolean waitForSessionStart() throws InterruptedException {

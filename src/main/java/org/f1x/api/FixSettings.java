@@ -29,6 +29,11 @@ public class FixSettings extends SocketOptions {
     /** FIX Heartbeat interval in seconds */
     private int heartBeatIntervalSec = 30;
 
+    /** If it > 0 then heartbeat check is performed each heartbeat check interval milliseconds.
+     *  If not then heartbeat check is disabled.
+     * */
+    private int heartbeatCheckIntervalMs;
+
     /** Directory where FIX Log files will be stored */
     private String logDirectory;
 
@@ -84,6 +89,14 @@ public class FixSettings extends SocketOptions {
 
     public void setHeartBeatIntervalSec(int heartBeatIntervalSec) {
         this.heartBeatIntervalSec = heartBeatIntervalSec;
+    }
+
+    public int getHeartbeatCheckIntervalMs() {
+        return heartbeatCheckIntervalMs;
+    }
+
+    public void setHeartbeatCheckIntervalMs(int heartbeatCheckIntervalMs) {
+        this.heartbeatCheckIntervalMs = heartbeatCheckIntervalMs;
     }
 
     /** When <code>true</code> each LOGON will be sent with ResetSeqNum(141)=Y and sequence numbers/message store will be reset at the beginning of each connection */
