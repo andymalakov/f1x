@@ -42,6 +42,7 @@ public class FixSettings extends SocketOptions {
 
     /** FIX 4.4 Has new mechanism to synchronize sequence numbers using tag NextExpectedMsgSeqNum(789). When this flag is enabled, tag NextExpectedMsgSeqNum(789) will be transmitted FIX Logon message */
     private boolean logonWithNextExpectedMsgSeqNum;
+    private boolean sendRequiresConnect;
 
 
     /** Max buffer size for inbound message (used by Socket read) */
@@ -115,5 +116,16 @@ public class FixSettings extends SocketOptions {
 
     public void setLogonWithNextExpectedMsgSeqNum(boolean logonWithNextExpectedMsgSeqNum) {
         this.logonWithNextExpectedMsgSeqNum = logonWithNextExpectedMsgSeqNum;
+    }
+
+    /** When this flag is enabled FixCommunicator.send() fails if session is not connected.
+     * If this flag is disabled communicator will advance sequence number and store outbound message into FIX log if connection is down.
+     * This will introduce outbound sequence number gap that other side may request to fill after reconnect. */
+    public boolean isSendRequiresConnect() {
+        return sendRequiresConnect;
+    }
+
+    public void setSendRequiresConnect(boolean sendRequiresConnect) {
+        this.sendRequiresConnect = sendRequiresConnect;
     }
 }

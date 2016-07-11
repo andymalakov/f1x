@@ -44,18 +44,18 @@ final class RawMessageAssembler {
 
     private final TimestampFormatter timestampFormatter = TimestampFormatter.createUTCTimestampFormatter();  //TODO Reuse instance kept by MessageBuilder?
     private final byte [] BEGIN_STRING;
-
+    private final boolean isSendRequiresConnect;
     private final byte [] buffer;
 
-    RawMessageAssembler(FixVersion version, int maxMessageSize) {
+    RawMessageAssembler(FixVersion version, int maxMessageSize, boolean sendRequiresConnect) {
         buffer = new byte[maxMessageSize];
-
+        isSendRequiresConnect = sendRequiresConnect;
         BEGIN_STRING = AsciiUtils.getBytes("" + FixTags.BeginString + '=' + version.getBeginString() + (char) SOH);
         System.arraycopy(BEGIN_STRING, 0, buffer, 0, BEGIN_STRING.length);
     }
 
     void send(SessionID sessionID, int msgSeqNum, MessageBuilder messageBuilder, MessageStore messageStore, long sendingTime,  OutputChannel out) throws IOException {
-        if (out == null)
+        if (isSendRequiresConnect && out == null)
             throw new IllegalStateException("Not connected");
 
         int offset = BEGIN_STRING.length;
@@ -98,7 +98,8 @@ final class RawMessageAssembler {
         offset = set3DigitIntField(FixTags.CheckSum, checkSum, buffer, offset);
 
         try {
-            out.write(buffer, 0, offset);
+            if (out != null)
+                out.write(buffer, 0, offset);
         } finally {
             if (messageStore != null)
                 messageStore.put(msgSeqNum, buffer, 0, offset);

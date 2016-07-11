@@ -126,7 +126,7 @@ public abstract class FixCommunicator implements FixSession, Loggable {
 
         sessionMessageBuilder = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
         messageBuilderForResend = new ByteBufferMessageBuilder(settings.getMaxOutboundMessageSize(), settings.getDoubleFormatterPrecision());
-        messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize());
+        messageAssembler = new RawMessageAssembler(fixVersion, settings.getMaxOutboundMessageSize(), settings.isSendRequiresConnect());
         inboundMessageBuffer = new byte [settings.getMaxInboundMessageSize()];
         messageBufferForResend = new byte[settings.getMaxOutboundMessageSize()];
         this.timeSource = timeSource;
