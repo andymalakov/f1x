@@ -15,7 +15,7 @@
 package org.f1x.v1;
 
 public class SocketOptions {
-    private boolean isSocketKeepAlive = true;
+    private boolean isSocketKeepAlive = false;
     private boolean isSocketTcpNoDelay = true;
     private int socketTimeout = 0;
     private int socketRecvBufferSize = 64*1024;

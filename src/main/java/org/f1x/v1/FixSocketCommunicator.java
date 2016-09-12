@@ -39,6 +39,14 @@ public abstract class FixSocketCommunicator extends FixCommunicator {
             LOGGER.info().append("Connected to ").append(address).commit();
         }
 
+        FixSettings settings = getSettings();
+
+        socket.setTcpNoDelay(settings.isSocketTcpNoDelay());
+        socket.setKeepAlive(settings.isSocketKeepAlive());
+        socket.setSoTimeout(settings.getSocketTimeout());
+        socket.setSendBufferSize(settings.getSocketSendBufferSize());
+        socket.setReceiveBufferSize(settings.getSocketRecvBufferSize());
+
         setSessionStatus(SessionStatus.SocketConnected);
         connect(getInputChannel(socket), getOutputChannel(socket));
     }
