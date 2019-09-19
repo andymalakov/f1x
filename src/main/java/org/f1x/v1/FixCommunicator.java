@@ -232,9 +232,12 @@ public abstract class FixCommunicator implements FixSession, Loggable {
         if (sessionState == null)
             sessionState = new MemorySessionState();
 
-        messageStore = messageStore == null ?
-                EmptyMessageStore.getInstance() :
-                new SafeMessageStore(messageStore);
+        if (messageStore == null) {
+            messageStore = EmptyMessageStore.getInstance();
+        } else {
+            if (!(messageStore instanceof SafeMessageStore) && !(messageStore instanceof EmptyMessageStore))
+                messageStore = new SafeMessageStore(messageStore);
+        }
     }
 
     protected void destroy(){
