@@ -8,3 +8,7 @@ Changes in 0.2
  * interface SessionID changed to abstract class with final equals and hashCode methods
  + Added MessageLog and FixCommunicator.setMessageLogFactory()
  + Added FixSessionSchedule
+
+ Changes in 0.7
+ =============
+ * fixed regression of missing socket options
